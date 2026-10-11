@@ -1,0 +1,16 @@
+{
+  "version": "0.4.1-network.1-experimental",
+  "inputs": {
+    "N9Ezz-Universal-Loader-0.4.1-experimental.jar": "b81855307752b3d20df9bff66175914d2a118e7cce688c15e24b153952c60b3b",
+    "N9Ezz-Universal-Loader-0.4.1-experimental-sources.zip": "b5451d33b11c389cadf1b8d85879a9f625faed60022f6cc9dae87ff9864dc960"
+  },
+  "clientSha256": "5dbb9f72359d8371b7069dbf4f421c358c28a8c11af23e06c9182ec793aada6a",
+  "clientSize": 53730349,
+  "gameplay": "UNRUN",
+  "wireCapture": "UNRUN",
+  "checks": "see current-run test reports",
+  "outputs": {
+    "N9Ezz-Universal-Loader-0.4.1-network.1-experimental.jar": "bd6c983ac22f436e914f5510faa598a18c218f08e10c8b5c36504ebf31e40100",
+    "N9Ezz-0.4.1-network.1-experimental-patch-sources.zip": "0a734c3233ab0bf132a6895c2c09bde1c89e2b6ef4c9740bc04a1703e6c81a9f"
+  }
+}

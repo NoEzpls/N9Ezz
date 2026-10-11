@@ -1,0 +1,12 @@
+PASS missing vanilla version fails without modifying files
+PASS one experimental profile installed and old profile/files preserved
+PASS installed library checksum and one-core profile verified
+PASS exact previous launcher metadata backed up
+PASS repeat installation leaves all file bytes unchanged
+PASS malformed launcher metadata preserved and installation rejected
+PASS altered builtin client cache is preserved and rejected before launcher changes
+PASS missing launcher metadata creates exactly one profile
+PASS foreign profile with same id is preserved
+PASS symlink target preserved on rejected install
+PASS builtin N9Ezz is discovered without mods and honestly rejected before entrypoints
+Installer metadata tests: 11 passed, 0 failed. Real Minecraft launch: UNRUN.

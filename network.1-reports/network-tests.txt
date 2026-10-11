@@ -1,0 +1,7 @@
+PASS: all unrelated module classes and archive entry contents preserved byte-for-byte.
+PASS: modified bytecode verifies; mixin annotations and unrelated methods preserved.
+PASS: 16 required packet types in both namespaces and directions retain delivery and observers; unrelated filters still cancel.
+PASS: exact velocity hook preserves server vector identity and components.
+PASS: per-tick and recursive dispatch limits, manual claims, original guards, order and exception cleanup.
+PASS: 3909 archive, annotation, bytecode and isolated runtime assertions.
+Scope: exact patched transport methods with dependency stubs; no live game/server integration claim.

@@ -1,0 +1,11 @@
+{
+  "byte_identical": true,
+  "outputs": {
+    "N9Ezz-Universal-Loader-0.4.1-network.1-experimental.jar": "bd6c983ac22f436e914f5510faa598a18c218f08e10c8b5c36504ebf31e40100",
+    "N9Ezz-0.4.1-network.1-experimental-patch-sources.zip": "0a734c3233ab0bf132a6895c2c09bde1c89e2b6ef4c9740bc04a1703e6c81a9f"
+  },
+  "independent_output_directory": "/workspace/n9ezz-final-reproduction",
+  "full_recipe_runs_passed": 2,
+  "gameplay": "UNRUN",
+  "wireCapture": "UNRUN"
+}

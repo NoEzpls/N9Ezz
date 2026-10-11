@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "java_exit_code": 0,
+  "expected_checks": 3036,
+  "loader_sha256": "bd6c983ac22f436e914f5510faa598a18c218f08e10c8b5c36504ebf31e40100",
+  "client_sha256": "5dbb9f72359d8371b7069dbf4f421c358c28a8c11af23e06c9182ec793aada6a",
+  "test_source_sha256": "bb9aba162b1e93dc1aa86e11d758e45fa5b09838e8184a7f8d24193237349585",
+  "production_geometry_recompiled": false,
+  "client_initializers_called": false,
+  "minecraft_launched": false,
+  "network_packets_tested": false,
+  "scope": "Existing geometry assertions run against pinned embedded TargetGeometry.class bytecode"
+}
