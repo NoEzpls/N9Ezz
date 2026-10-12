@@ -6,6 +6,8 @@ public final class CfSessionTest {
 
     public static void main(String[] args) {
         boundsAndImmutableStake();
+        selectedStakeBoundsAndPersistence();
+        pendingStakeCannotChange();
         pendingAndPacing();
         pacingAcrossSessions();
         uiBlocksOnlyNewCommands();
@@ -62,6 +64,54 @@ public final class CfSessionTest {
         equal(null, s.tick(4_102, true, false));
         equal("cf create 50000", s.tick(4_103, true, false));
         equal(3, s.snapshot().submitted());
+    }
+
+    private static void selectedStakeBoundsAndPersistence() {
+        CfSession s = new CfSession();
+        equal(CfSession.STAKE, s.snapshot().stake());
+        for (long amount : new long[] {Long.MIN_VALUE, -1, 0, 49_999, 5_000_001, Long.MAX_VALUE}) {
+            throwsType(IllegalArgumentException.class, () -> s.selectStake(amount));
+            equal(CfSession.STAKE, s.snapshot().stake());
+        }
+        s.selectStake(CfSession.MAX_STAKE);
+        equal(CfSession.MAX_STAKE, s.snapshot().stake());
+        s.start(1, 0);
+        equal("cf create 5000000", s.tick(0, true, false));
+        settle(s, 1, CfSession.Signal.LOSS);
+        equal(CfSession.MAX_STAKE, s.snapshot().stake());
+        s.start(1, 2_000);
+        equal("cf create 5000000", s.tick(2_000, true, false));
+        settle(s, 2_001, CfSession.Signal.WIN);
+        s.selectStake(CfSession.STAKE);
+        s.start(1, 4_000);
+        equal("cf create 50000", s.tick(4_000, true, false));
+    }
+
+    private static void pendingStakeCannotChange() {
+        CfSession s = started(3, 0);
+        // Selection while RUNNING is allowed only before the next wager exists.
+        s.selectStake(1_500_001);
+        equal("cf create 1500001", s.tick(0, true, false));
+        throwsType(IllegalStateException.class, () -> s.selectStake(50_000));
+        equal(1_500_001L, s.snapshot().stake());
+        s.onSignal(CfSession.Signal.CREATED, 1);
+        throwsType(IllegalStateException.class, () -> s.selectStake(2_000_000));
+        equal(1_500_001L, s.snapshot().stake());
+        s.onSignal(CfSession.Signal.WIN, 2);
+        s.selectStake(2_000_000);
+        equal(2_000_000L, s.snapshot().stake());
+        equal("cf create 2000000", s.tick(2_000, true, false));
+        s.stop("manual");
+        throwsType(IllegalStateException.class, () -> s.selectStake(50_000));
+        equal(2_000_000L, s.snapshot().stake());
+        settle(s, 2_001, CfSession.Signal.LOSS);
+        s.selectStake(3_000_000);
+        equal(3_000_000L, s.snapshot().stake());
+        s.markUnresolved();
+        throwsType(IllegalStateException.class, () -> s.selectStake(50_000));
+        s.clearUnresolved();
+        s.selectStake(50_000);
+        equal(CfSession.STAKE, s.snapshot().stake());
     }
 
     private static void uiBlocksOnlyNewCommands() {

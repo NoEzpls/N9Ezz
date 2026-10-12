@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "cf_assistant",
-  "version": "0.1.0-experimental",
+  "version": "0.2.0-experimental",
   "namespace": "none",
   "entrypoints": {
     "client": ["dev.n9ezz.cf.CfAssistant"]

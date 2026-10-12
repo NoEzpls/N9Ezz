@@ -13,6 +13,7 @@ final class CfStore {
     record State(boolean unresolved, long wins, long losses) { }
     private final Path directory;
     private State state;
+    private Properties metadata = new Properties();
 
     CfStore(Path directory) throws IOException {
         this.directory = directory;
@@ -32,6 +33,10 @@ final class CfStore {
                 if (wins < 0 || losses < 0) throw new IllegalArgumentException();
                 Math.addExact(wins, losses);
                 state = new State(Boolean.parseBoolean(pending), wins, losses);
+                for (String key : properties.stringPropertyNames()) {
+                    if (key.startsWith("nn.") || key.startsWith("prefs.") || key.equals("model.scope"))
+                        metadata.setProperty(key, properties.getProperty(key));
+                }
             } catch (RuntimeException invalid) {
                 throw new IOException("Повреждено состояние CF; автоматическая игра заблокирована", invalid);
             }
@@ -39,9 +44,24 @@ final class CfStore {
     }
 
     State state() { return state; }
+    Properties metadata() {
+        Properties copy = new Properties();
+        copy.putAll(metadata);
+        return copy;
+    }
 
     void commit(State next) throws IOException {
+        commit(next, metadata);
+    }
+
+    /** Outcome totals, learned weights and pending marker must commit together. */
+    void commit(State next, Properties nextMetadata) throws IOException {
         Properties properties = new Properties();
+        for (String key : nextMetadata.stringPropertyNames()) {
+            if (!(key.startsWith("nn.") || key.startsWith("prefs.") || key.equals("model.scope")))
+                throw new IllegalArgumentException("Unsupported state metadata: " + key);
+            properties.setProperty(key, nextMetadata.getProperty(key));
+        }
         properties.setProperty("unresolved", Boolean.toString(next.unresolved()));
         properties.setProperty("wins", Long.toString(next.wins()));
         properties.setProperty("losses", Long.toString(next.losses()));
@@ -59,6 +79,8 @@ final class CfStore {
             Files.move(temporary, directory.resolve("state.properties"),
                     StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             state = next;
+            metadata = new Properties();
+            metadata.putAll(nextMetadata);
         } finally { Files.deleteIfExists(temporary); }
     }
 

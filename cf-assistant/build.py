@@ -18,7 +18,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent
 LOADER_SHA256 = "bd6c983ac22f436e914f5510faa598a18c218f08e10c8b5c36504ebf31e40100"
-VERSION = "0.1.0-experimental"
+VERSION = "0.2.0-experimental"
 JAR_NAME = f"N9Ezz-CF-Assistant-{VERSION}.jar"
 SOURCE_NAME = f"N9Ezz-CF-Assistant-{VERSION}-sources.zip"
 FIXED_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
@@ -159,7 +159,7 @@ def main() -> int:
         jar_entries = {path.relative_to(classes).as_posix(): path.read_bytes() for path in sorted(classes.rglob("*.class"))}
         resource_prefix = "src/main/resources/"
         jar_entries.update({name[len(resource_prefix):]: data for name, data in sources.items() if name.startswith(resource_prefix)})
-        jar_entries["META-INF/MANIFEST.MF"] = b"Manifest-Version: 1.0\r\nImplementation-Title: N9Ezz CF Assistant\r\nImplementation-Version: 0.1.0-experimental\r\n\r\n"
+        jar_entries["META-INF/MANIFEST.MF"] = f"Manifest-Version: 1.0\r\nImplementation-Title: N9Ezz CF Assistant\r\nImplementation-Version: {VERSION}\r\n\r\n".encode("ascii")
         jar_path = products / JAR_NAME
         write_zip(jar_path, jar_entries)
         write_zip(products / SOURCE_NAME, {"cf-assistant/" + name: data for name, data in sources.items()})
@@ -169,7 +169,7 @@ def main() -> int:
         shutil.copyfile(jar_path, mods / JAR_NAME)
         for operation in ("verify", "run"):
             text = run([java, "-jar", loader, "--" + operation, "--game-dir", work / (operation + "-game"), "--mods-dir", mods], work)
-            if "cf_assistant@0.1.0-experimental" not in text:
+            if f"cf_assistant@{VERSION}" not in text:
                 raise RuntimeError(f"API-only --{operation} did not report the addon")
             if operation == "run" and "ENTRYPOINT:cf_assistant:client" not in text:
                 raise RuntimeError("API-only --run did not execute the client initializer")
@@ -185,6 +185,9 @@ def main() -> int:
             "native_verify": "PASS", "native_api_only_run": "PASS",
             "minecraft_gameplay": "UNRUN", "live_server_commands": "UNRUN",
             "500_game_training": "UNRUN",
+            "neural_model": "Local 12-8-1 MLP; synthetic prequential evaluation only; no server-trained weights bundled",
+            "goal_currency": "Exact own coins balance from configured /bal reply; raids and koins excluded",
+            "server_templates": "USER_CONFIGURATION_REQUIRED",
             "limitations": "API-only checks do not launch Minecraft, exercise real Pulse hooks, or play server games.",
             "source_files": sorted(sources),
             "artifacts": {name: {"sha256": digest(products / name), "bytes": (products / name).stat().st_size} for name in (JAR_NAME, SOURCE_NAME)},

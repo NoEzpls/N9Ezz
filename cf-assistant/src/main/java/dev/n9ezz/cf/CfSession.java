@@ -3,12 +3,13 @@ package dev.n9ezz.cf;
 import java.util.Objects;
 
 /**
- * A bounded, fixed-stake session. This class has no Minecraft or network dependencies:
+ * A bounded session with an explicitly selected stake. This class has no Minecraft or network dependencies:
  * the caller sends a returned command once, and calls {@link #failSend(String)} on failure.
  * It deliberately makes no prediction from the outcomes of independent coin flips.
  */
 public final class CfSession {
     public static final long STAKE = 50_000L;
+    public static final long MAX_STAKE = 5_000_000L;
     public static final int MAX_TARGET = 500;
     public static final long CREATE_INTERVAL_MILLIS = 2_000L;
     public static final long CREATE_TIMEOUT_MILLIS = 10_000L;
@@ -20,7 +21,7 @@ public final class CfSession {
 
     public record Snapshot(Mode mode, Phase phase, String reason, int target,
                            int submitted, int completed, int wins, int losses,
-                           boolean unresolved) { }
+                           boolean unresolved, long stake) { }
 
     private Mode mode = Mode.STOPPED;
     private Phase phase = Phase.IDLE;
@@ -36,6 +37,22 @@ public final class CfSession {
     private long phaseStartedAt;
     private boolean hasObservedTime;
     private long lastObservedAt;
+    private long stake = STAKE;
+
+    /**
+     * Select the amount before tick() creates a pending wager and before the caller
+     * records its durable marker. A pending wager keeps its amount until settled.
+     * The session itself makes no model-based prediction or guarantee of winning.
+     */
+    public synchronized void selectStake(long amount) {
+        if (amount < STAKE || amount > MAX_STAKE) {
+            throw new IllegalArgumentException("Ставка должна быть от " + STAKE + " до " + MAX_STAKE);
+        }
+        if (unresolved || phase != Phase.IDLE) {
+            throw new IllegalStateException("Нельзя менять сумму незавершённой ставки");
+        }
+        stake = amount;
+    }
 
     /** An explicit start never carries over an unconfirmed stake from an earlier run. */
     public synchronized void start(int target, long nowMillis) {
@@ -96,9 +113,9 @@ public final class CfSession {
         hasSubmitted = true;
         submitted++;
         reason = "Ожидание подтверждения создания ставки";
-        // Results never affect the stake: a winning streak provides no evidence
-        // that the next independent 50/50 trial will be won.
-        return "cf create " + STAKE;
+        // Only explicit selection changes the amount. Outcomes by themselves never
+        // alter it, and the selected amount stays frozen while this bet is pending.
+        return "cf create " + stake;
     }
 
     /**
@@ -213,7 +230,7 @@ public final class CfSession {
 
     public synchronized Snapshot snapshot() {
         return new Snapshot(mode, phase, reason, target, submitted, completed,
-                wins, losses, unresolved);
+                wins, losses, unresolved, stake);
     }
 
     private boolean observeTime(long nowMillis) {

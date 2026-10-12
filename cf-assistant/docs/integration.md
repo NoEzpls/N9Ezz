@@ -80,6 +80,44 @@ session. State replacement errors prevent a send. Journal or capture errors bloc
 further automation. This guards ordinary process crashes; it is not a transaction
 with the server and cannot prove whether an interrupted command was accepted.
 
-Reported amounts and names are retained as text. No fee arithmetic or confidence
-based wager sizing is inferred. Tests use fabricated messages and fake game types;
+Reported game amounts and names are retained as text. No fee arithmetic is inferred.
+Tests use fabricated messages and fake game types;
 they must not be presented as recordings from RaidMine.
+
+## Neural decisions and monetary targets (0.2.0)
+
+`CfNeuralModel` is a deterministic local 12-input/8-hidden/1-output MLP. Features
+contain only previously observed own outcomes, recent means and streak length.
+`observe` scores the untouched forecast first, updates network weights by SGD,
+then appends the new outcome. Predictions are clamped to [0.05, 0.95]. Warmup is
+200 outcomes; at least 100 subsequent prequential scores are needed for automated
+use, plus a current history of at least 8 known outcomes. Both cumulative and
+recent-100 Brier scores must improve on constant-0.5 and preceding empirical-rate
+baselines by more than max(0.015, 2.58 × estimated standard error). This gate is a
+heuristic diagnostic, not a p-value, calibrated certainty, or future guarantee.
+
+Auto stops when the gate fails or the current estimate is below 0.60. A stopped
+forecast cannot change merely by waiting; only explicit collection supplies new
+outcomes. Stake sizing interpolates between 50,000 and the user cap over estimates
+0.60..0.90, rounded down by 50,000, then capped by observed coins and remaining
+loss allowance. It is not Kelly sizing and assumes no unverified payout rule.
+The default cap is 50,000, absolute cap 5,000,000. Collection always uses 50,000.
+
+The absolute goal and optional loss cap use exact BigDecimal balances from an
+explicit own `/bal` query before the first wager and after each settled result.
+The configured full-message regex must name the coins field `amount`; raids and
+koins are separate currencies. Decimal/grouping separators are explicit. No
+abbreviated balances or guess from a game payout can authorize spending. A
+10-second balance timeout stops without retry, and a snapshot older than 15
+seconds must be refreshed. Unsolicited balances cannot satisfy a goal.
+
+No server response ID exists for `/bal` either. Manual `/bal` invalidates an active
+query; other modules and delayed duplicate replies remain outside reliable
+attribution. Use a self-specific exact reply template when the server provides it.
+
+Model weights, validation sums, settings, counters and pending state commit in the
+same atomic properties replacement. Startup retains learned weights but clears
+sequence context and never resumes a session. Manual CF interaction, explicit
+pending reset and untracked outcomes also break sequence context. Configuration
+templates and `model.scope` identify a learning scope; changing it starts a fresh
+model. There are no remotely trained weights, telemetry or cloud inference calls.

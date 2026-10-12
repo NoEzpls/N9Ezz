@@ -1,0 +1,17 @@
+[CF] game runtime absent; API-only load, no game hooks installed
+{
+  "mode": "api-only-runtime",
+  "mods": [
+    "cf_assistant@0.2.0-experimental"
+  ],
+  "lifecycle": [
+    "DISCOVERED",
+    "RESOLVED",
+    "TRANSFORMERS_READY",
+    "COMMON_SETUP",
+    "CLIENT_SETUP",
+    "ENTRYPOINT:cf_assistant:client",
+    "READY"
+  ],
+  "diagnostics": []
+}

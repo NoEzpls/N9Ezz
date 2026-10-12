@@ -1,0 +1,29 @@
+[dev.n9ezz.cf.CfBalanceTest]
+CfBalanceTest: 76 checks passed
+
+[dev.n9ezz.cf.CfControllerTest]
+CfControllerTest: 4107 assertions passed (offline synthetic fixtures)
+
+[dev.n9ezz.cf.CfGoalTest]
+CfGoalTest: 56 checks passed
+
+[dev.n9ezz.cf.CfNeuralControllerTest]
+CfNeuralControllerTest: 4637 assertions passed (offline synthetic replies and real local model training)
+
+[dev.n9ezz.cf.CfNeuralModelTest]
+CfNeuralModelTest: 2718 checks passed
+
+[dev.n9ezz.cf.CfParserTest]
+CfParserTest: 39 checks passed
+
+[dev.n9ezz.cf.CfRuntimeTest]
+[CF] STOPPED: Сессия не запущена. Сессия 0/0; побед 0, поражений 0; незавершённая: false
+[CF] Подтверждённых результатов пока нет. Нейросеть не обучена; прогноз следующей игры отсутствует.
+[CF] Локальная нейросеть: обучено на 0, проверено до обучения на 0; допуск к автоматическому режиму: false
+CfRuntimeTest: 82 checks passed (fake host; gameplay UNRUN)
+
+[dev.n9ezz.cf.CfSessionTest]
+CfSessionTest: 3716 checks passed
+
+[dev.n9ezz.cf.CfStatisticsTest]
+CfStatisticsTest: 251516 checks passed

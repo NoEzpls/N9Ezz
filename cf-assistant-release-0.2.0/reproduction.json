@@ -1,0 +1,9 @@
+{
+  "source_archive_rebuild": "PASS",
+  "artifacts": {
+    "N9Ezz-CF-Assistant-0.2.0-experimental.jar": "d5c3402907bccdde85be41cbe5d2155fae7df2631106fd63a08d4276001a0506",
+    "N9Ezz-CF-Assistant-0.2.0-experimental-sources.zip": "1c637bb53ec1af1a169eff3ff838375b8eeeb77861bf816ef96d22373dddb909"
+  },
+  "minecraft_gameplay": "UNRUN",
+  "live_server_training": "UNRUN"
+}
