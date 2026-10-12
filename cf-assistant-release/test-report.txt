@@ -1,0 +1,16 @@
+[dev.n9ezz.cf.CfControllerTest]
+CfControllerTest: 4107 assertions passed (offline synthetic fixtures)
+
+[dev.n9ezz.cf.CfParserTest]
+CfParserTest: 39 checks passed
+
+[dev.n9ezz.cf.CfRuntimeTest]
+[CF] STOPPED: Сессия не запущена. Сессия 0/0; побед 0, поражений 0; незавершённая: false
+[CF] Подтверждённых результатов пока нет. Нейросеть не обучена; прогноз следующей игры отсутствует.
+CfRuntimeTest: 82 checks passed (fake host; gameplay UNRUN)
+
+[dev.n9ezz.cf.CfSessionTest]
+CfSessionTest: 3680 checks passed
+
+[dev.n9ezz.cf.CfStatisticsTest]
+CfStatisticsTest: 251516 checks passed

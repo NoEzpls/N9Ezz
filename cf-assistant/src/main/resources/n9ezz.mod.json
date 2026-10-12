@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "cf_assistant",
+  "version": "0.1.0-experimental",
+  "namespace": "none",
+  "entrypoints": {
+    "client": ["dev.n9ezz.cf.CfAssistant"]
+  },
+  "depends": {
+    "java": ">=21",
+    "n9ezz": ">=0.4.1"
+  }
+}

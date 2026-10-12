@@ -1,0 +1,13 @@
+{
+  "mode": "verify-no-entrypoints",
+  "mods": [
+    "cf_assistant@0.1.0-experimental"
+  ],
+  "lifecycle": [
+    "DISCOVERED",
+    "RESOLVED",
+    "TRANSFORMERS_READY",
+    "VERIFY_ONLY_COMPLETE"
+  ],
+  "diagnostics": []
+}

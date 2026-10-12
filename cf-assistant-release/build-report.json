@@ -1,0 +1,55 @@
+{
+  "addon": "cf_assistant",
+  "version": "0.1.0-experimental",
+  "loader_sha256": "bd6c983ac22f436e914f5510faa598a18c218f08e10c8b5c36504ebf31e40100",
+  "java": [
+    "openjdk version \"21.0.8\" 2025-07-15 LTS",
+    "OpenJDK Runtime Environment Temurin-21.0.8+9 (build 21.0.8+9-LTS)",
+    "OpenJDK 64-Bit Server VM Temurin-21.0.8+9 (build 21.0.8+9-LTS, mixed mode, sharing)"
+  ],
+  "javac": "javac 21.0.8",
+  "build": "PASS",
+  "offline": true,
+  "test_classes": [
+    "dev.n9ezz.cf.CfControllerTest",
+    "dev.n9ezz.cf.CfParserTest",
+    "dev.n9ezz.cf.CfRuntimeTest",
+    "dev.n9ezz.cf.CfSessionTest",
+    "dev.n9ezz.cf.CfStatisticsTest"
+  ],
+  "native_verify": "PASS",
+  "native_api_only_run": "PASS",
+  "minecraft_gameplay": "UNRUN",
+  "live_server_commands": "UNRUN",
+  "500_game_training": "UNRUN",
+  "limitations": "API-only checks do not launch Minecraft, exercise real Pulse hooks, or play server games.",
+  "source_files": [
+    ".gitignore",
+    "README.md",
+    "build.py",
+    "docs/integration.md",
+    "src/main/java/dev/n9ezz/cf/CfAssistant.java",
+    "src/main/java/dev/n9ezz/cf/CfController.java",
+    "src/main/java/dev/n9ezz/cf/CfParser.java",
+    "src/main/java/dev/n9ezz/cf/CfRuntime.java",
+    "src/main/java/dev/n9ezz/cf/CfSession.java",
+    "src/main/java/dev/n9ezz/cf/CfStatistics.java",
+    "src/main/java/dev/n9ezz/cf/CfStore.java",
+    "src/main/resources/n9ezz.mod.json",
+    "src/test/java/dev/n9ezz/cf/CfControllerTest.java",
+    "src/test/java/dev/n9ezz/cf/CfParserTest.java",
+    "src/test/java/dev/n9ezz/cf/CfRuntimeTest.java",
+    "src/test/java/dev/n9ezz/cf/CfSessionTest.java",
+    "src/test/java/dev/n9ezz/cf/CfStatisticsTest.java"
+  ],
+  "artifacts": {
+    "N9Ezz-CF-Assistant-0.1.0-experimental.jar": {
+      "sha256": "fa33a8d3854c6fda156592703df9f62925cf95bc291f286c5582edde9e8280dc",
+      "bytes": 33146
+    },
+    "N9Ezz-CF-Assistant-0.1.0-experimental-sources.zip": {
+      "sha256": "f99e581d9d60b8f748244167877889074fc97bf8bba4de9b4d014a3f0dabc27f",
+      "bytes": 45769
+    }
+  }
+}
