@@ -1,0 +1,20 @@
+{
+  "baseline": "uploaded N9Ezz-CF-Assistant-0.2.1-experimental.jar",
+  "baseline_sha256": "652fdcf0c22688f45f739ed365205d02dd2d992628ddd61d8a8d916fb40cc240",
+  "source_status": "Only JAR supplied; source reconstructed and changed for 0.2.2. Original comments/build metadata unavailable.",
+  "decompiler": "CFR0.152",
+  "decompiler_sha256": "f686e8f3ded377d7bc87d216a90e9e9512df4156e75b06c655a16648ae8765b2",
+  "runtime_compatibility": "CfAssistant/CfRuntime bridge restored from 0.2.1; same Minecraft intermediary and Pulse/Orbit hook names. Native N9Ezz Loader mod; not a NeoForge/Fabric mod.",
+  "build_api": {
+    "loader": "locally available N9Ezz Universal Loader 0.4.1-network.1-experimental",
+    "sha256": "bd6c983ac22f436e914f5510faa598a18c218f08e10c8b5c36504ebf31e40100",
+    "bundled_in_release": false
+  },
+  "model_restore_check": {
+    "synthetic_samples": 1200,
+    "seed": 221022,
+    "break_sequence_before_sample": 500,
+    "baseline_and_restored_digest": "7dcb5976976a2554336011c51745b7d25f8da2ddf5091bc35e512aebebce0eef",
+    "meaning": "SHA256 of sorted model properties plus prediction string; baseline and restored matched on Temurin 21.0.8"
+  }
+}

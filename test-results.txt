@@ -1,0 +1,18 @@
+openjdk version "21.0.8" 2025-07-15 LTS
+OpenJDK Runtime Environment Temurin-21.0.8+9 (build 21.0.8+9-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.8+9 (build 21.0.8+9-LTS, mixed mode, sharing)
+RUN dev.n9ezz.cf.CfBalanceTest
+CfBalanceTest: 38 checks passed
+RUN dev.n9ezz.cf.CfControllerTest
+CfControllerTest: 33 scenarios, 1168 assertions passed
+RUN dev.n9ezz.cf.CfParserTest
+CfParserTest: 52 checks passed
+RUN dev.n9ezz.cf.CfRestoredModelTest
+CfRestoredModelTest: 14 compatibility checks passed
+RUN dev.n9ezz.cf.CfRuntimeTest
+CfRuntimeTest: 65 assertions passed (fake reflection bridge; no live game)
+RUN dev.n9ezz.cf.CfSessionTest
+CfSessionTest: PASS (1022 checks)
+RUN dev.n9ezz.cf.CfStoreTest
+CfStoreTest: 71 checks passed
+ALL TEST SUITES PASSED
