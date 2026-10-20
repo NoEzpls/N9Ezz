@@ -1,0 +1,172 @@
+{
+  "version": "0.4.5-experimental",
+  "status": "PASS",
+  "jdk": "openjdk version \"21.0.8\" 2025-07-15 LTS",
+  "tests": [
+    {
+      "name": "RewriteTest",
+      "result": "PASS",
+      "report": "RewriteTest.txt"
+    },
+    {
+      "name": "CombatTest",
+      "result": "PASS",
+      "report": "CombatTest.txt"
+    },
+    {
+      "name": "ModuleTest",
+      "result": "PASS",
+      "report": "ModuleTest.txt"
+    },
+    {
+      "name": "FeatureTest",
+      "result": "PASS",
+      "report": "FeatureTest.txt"
+    },
+    {
+      "name": "BrandTest",
+      "result": "PASS",
+      "report": "BrandTest.txt"
+    },
+    {
+      "name": "NetworkTest",
+      "result": "PASS",
+      "report": "NetworkTest.txt"
+    },
+    {
+      "name": "runtime",
+      "result": "PASS",
+      "report": "runtime.txt"
+    },
+    {
+      "name": "mapping",
+      "result": "PASS",
+      "report": "mapping.txt"
+    },
+    {
+      "name": "access-widener",
+      "result": "PASS",
+      "report": "access-widener.txt"
+    },
+    {
+      "name": "nested-discovery",
+      "result": "PASS",
+      "report": "nested-discovery.txt"
+    },
+    {
+      "name": "mixin",
+      "result": "PASS",
+      "report": "mixin.txt"
+    },
+    {
+      "name": "fabric-compatibility",
+      "result": "PASS",
+      "report": "fabric-compatibility.txt"
+    },
+    {
+      "name": "fabric-entrypoint",
+      "result": "PASS",
+      "report": "fabric-entrypoint.txt"
+    },
+    {
+      "name": "fabric-dependency",
+      "result": "PASS",
+      "report": "fabric-dependency.txt"
+    },
+    {
+      "name": "game-integration",
+      "result": "PASS",
+      "report": "game-integration.txt"
+    },
+    {
+      "name": "external-mod-policy",
+      "result": "PASS",
+      "report": "external-mod-policy.txt"
+    },
+    {
+      "name": "universal-game-policy",
+      "result": "PASS",
+      "report": "universal-game-policy.txt"
+    },
+    {
+      "name": "quilt-game",
+      "result": "PASS",
+      "report": "quilt-game.txt"
+    },
+    {
+      "name": "fml-game",
+      "result": "PASS",
+      "report": "fml-game.txt"
+    },
+    {
+      "name": "local-diagnostics",
+      "result": "PASS",
+      "report": "local-diagnostics.txt"
+    },
+    {
+      "name": "client-contract",
+      "result": "PASS",
+      "report": "client-contract.txt"
+    },
+    {
+      "name": "resource-pack",
+      "result": "PASS",
+      "report": "resource-pack.txt"
+    },
+    {
+      "name": "packaged-self-test",
+      "result": "PASS",
+      "report": "packaged-self-test.txt"
+    },
+    {
+      "name": "installer",
+      "result": "PASS",
+      "report": "installer.txt"
+    },
+    {
+      "name": "installer-migration",
+      "result": "PASS",
+      "report": "installer-migration.txt"
+    },
+    {
+      "name": "test_gameplay_acceptance",
+      "result": "PASS",
+      "report": "test_gameplay_acceptance.txt"
+    },
+    {
+      "name": "test_cross_platform_acceptance",
+      "result": "PASS",
+      "report": "test_cross_platform_acceptance.txt"
+    }
+  ],
+  "inputs": {
+    "networkClientSha256": "5dbb9f72359d8371b7069dbf4f421c358c28a8c11af23e06c9182ec793aada6a",
+    "minecraftCompileApiSha256": "25810669cc30ab540f997f2af3fd3a4dae006f2275343951d874b19e8ed35d9f",
+    "originalLoaderSha256": "b81855307752b3d20df9bff66175914d2a118e7cce688c15e24b153952c60b3b",
+    "originalSourcesSha256": "b5451d33b11c389cadf1b8d85879a9f625faed60022f6cc9dae87ff9864dc960"
+  },
+  "realMinecraftLaunch": "UNRUN",
+  "RaidMineServerSession": "UNRUN",
+  "networkPacketCapture": "UNRUN",
+  "anticheatBypass": "NOT_CLAIMED",
+  "sourceScope": "Loader source and new ASM patches; original Pulse engine full source is unavailable.",
+  "preservedNetworkClasses": [
+    "ru/pulse/mixin/ClientConnectionMixin.class",
+    "pulse/n9ezz/mixin/CombatEntityMixin.class",
+    "pulse/n9ezz/CombatDispatch.class",
+    "pulse/n9ezz/NetworkPacketPolicy.class"
+  ],
+  "clientSha256": "289bc41b5878b087d2800e1bac973c137e30245ec96a99ab88f87b2fd4e67bd0",
+  "clientIdenticalTo044": true,
+  "clientSize": 53778299,
+  "artifacts": {
+    "PulseVisuals-Universal-Loader-0.4.5-experimental.jar": {
+      "sha256": "f299944f3a1a1ab0817dbaa4bcd3502f7bc3390936d0c1c685d25b1210ecced9",
+      "size": 53484822
+    },
+    "PulseVisuals-Universal-Loader-0.4.5-experimental-sources.zip": {
+      "sha256": "f3d18bb6b6e5b1913996c03eef39225a0d9a38228260905a700fa4804c0cf410",
+      "size": 3729531
+    }
+  }
+}
