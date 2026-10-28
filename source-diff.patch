@@ -1,0 +1,1760 @@
+--- /dev/null
++++ b/Build-Windows.ps1
+@@ -0,0 +1,34 @@
++param(
++    [Parameter(Mandatory=$true)][string]$JavaHome,
++    [Parameter(Mandatory=$true)][string]$Baseline,
++    [Parameter(Mandatory=$true)][string]$Minecraft,
++    [Parameter(Mandatory=$true)][string]$OriginalLoader,
++    [Parameter(Mandatory=$true)][string]$OriginalSources,
++    [Parameter(Mandatory=$true)][string]$PreviousRelease,
++    [Parameter(Mandatory=$true)][string]$ReferenceRelease,
++    [string]$Output = (Join-Path $PSScriptRoot 'dist'),
++    [string]$Python = 'python'
++)
++$ErrorActionPreference = 'Stop'
++# No downloads, profile edits, elevation or cleanup: the Python build verifies
++# every input checksum and refuses to overwrite a nonempty output directory.
++$jdk = (Resolve-Path -LiteralPath $JavaHome).Path
++foreach ($tool in @('java.exe', 'javac.exe')) {
++    if (-not (Test-Path -LiteralPath (Join-Path $jdk "bin\$tool") -PathType Leaf)) {
++        throw "A complete Windows JDK 21 is required: $jdk\bin\$tool"
++    }
++}
++$inputs = @($Baseline, $Minecraft, $OriginalLoader, $OriginalSources, $PreviousRelease, $ReferenceRelease)
++foreach ($inputPath in $inputs) {
++    if (-not (Test-Path -LiteralPath $inputPath -PathType Leaf)) { throw "Missing input: $inputPath" }
++}
++# Avoid embedded double quotes: Windows PowerShell 5 uses legacy native-argument parsing.
++& $Python -c 'import sys;sys.exit(sys.version_info<(3,10))'
++if ($LASTEXITCODE -ne 0) { throw 'Python 3.10+ preflight failed' }
++& $Python -X utf8 (Join-Path $PSScriptRoot 'build.py') --offline `
++    --java-home $jdk --baseline $Baseline --minecraft $Minecraft `
++    --original-loader $OriginalLoader --original-sources $OriginalSources `
++    --previous-release $PreviousRelease --reference-release $ReferenceRelease --output $Output
++if ($LASTEXITCODE -ne 0) { throw "Build/tests failed (exit $LASTEXITCODE). See the printed staging reports." }
++Write-Host "Build and automated checks complete: $Output"
++Write-Host 'Minecraft gameplay and server compatibility require the separate scenario in docs/GAMEPLAY-TEST-RU.md.'
+--- a/CHANGELOG-RU.md
++++ b/CHANGELOG-RU.md
+@@ -1,3 +1,22 @@
++# 0.5.0 Experimental — 28 октября 2026
++
++- Исправлен срок памяти Triggerbot при повторном захвате после остановки тиков:
++  `src/main/java/pulse/n9ezz/TriggerV2Controller.java`, методы `tick(long)` и
++  `memoryExpired(long)`. Проверка срока выполняется до обновления `lastSeen`.
++- `tests/fixtures/Trigger050Probe.txt`: ошибка обязательна к воспроизведению на
++  опубликованной 0.4.9; новый код проверяется на задержке, границе срока, коротком
++  промахе, нулевой памяти, смене цели/мира/игрока и паузе.
++- `build.py`: корректные имена Java на Windows, javac @argfile, UTF-8, отдельный
++  проверенный вход 0.4.9, интеграция TestKit. `Build-Windows.ps1` запускает полную
++  сборку с явными входами и не перезаписывает непустой каталог результата.
++- TestKit: статический режим по умолчанию, проверка обоих ZIP, метаданных и
++  ограничений распаковки, отчёт FAIL при повреждении вместо оставшегося PASS.
++- Сохранены все классы клиента кроме исправленного TriggerV2Controller и двух
++  классов с номером выпуска в сообщениях. Контроллеры Aura/Hitboxes/Speed,
++  сетевые обработчики, меню, настройки и схема установки сохраняются.
++- Изменений подмены пинга, сокрытия журналов или обхода серверных проверок нет.
++- Windows GUI, игровой клиент и отдельный сервер: UNRUN; сценарий приложен.
++
+ # N9Ezz 0.4.9 Experimental
+ 
+ - Удалено встроенное вращение камеры KillAura на тике и кадре. Старые поля вращения загружаются для совместимости, но скрыты в меню и не действуют.
+--- a/INPUTS.json
++++ b/INPUTS.json
+@@ -3,5 +3,6 @@
+   "minecraftCompileApiSha256": "25810669cc30ab540f997f2af3fd3a4dae006f2275343951d874b19e8ed35d9f",
+   "originalLoaderSha256": "b81855307752b3d20df9bff66175914d2a118e7cce688c15e24b153952c60b3b",
+   "originalSourcesSha256": "b5451d33b11c389cadf1b8d85879a9f625faed60022f6cc9dae87ff9864dc960",
+-  "previousReleaseSha256": "beba4df31d06867796e68667ed7fb972b47ad7ecd5988eba188b02305fbb3732"
++  "previousReleaseSha256": "beba4df31d06867796e68667ed7fb972b47ad7ecd5988eba188b02305fbb3732",
++  "referenceReleaseSha256": "31ab41905d0d2b35120dea95416a8e22c2c63e1438b555e4d0fdc0a94f976935"
+ }
+--- a/README-RU.md
++++ b/README-RU.md
+@@ -1,173 +1,74 @@
+-# N9Ezz 0.4.9 Experimental — KillAura без поворота камеры
++# N9Ezz 0.5.0 Experimental
+ 
+-KillAura выбирает цель независимо от направления прицела и передаёт её обычному
+-обработчику атаки. Встроенное изменение yaw/pitch удалено из контроллера, включая
+-обработчик кадров. Для целей сбоку и сзади больше не требуется поворот Aura.
++Инженерное обновление существующего клиента для **Minecraft Java 1.21.11,
++Java 21 и собственного N9Ezz Universal Loader**. Сохранены меню, конфигурации,
++83 модуля Pulse и 7 модулей N9Ezz. Это установщик отдельного профиля; его не
++нужно помещать в `mods`. Обычным Fabric-модом проект не заменён.
+ 
+-Новая настройка **«Выбирать за блоками»** разрешает клиентские запросы по закрытым
+-целям в обычной дистанции. Она включена по умолчанию согласно запросу на этот
+-режим. Запрос не равен подтверждённому урону: сервер может проверять направление,
+-препятствия и отклонять его. Маскировка под ванильный трафик, обход RaidMine,
+-отсутствие санкций и увеличение эффективности в миллион раз не реализованы
+-и не подтверждены тестами этой сборки.
++## Изменения
+ 
+-Speed, Hitboxes 0.4.8 и контроллер Triggerbot сохранены. При отправке запроса
+-новое правило применяется только к тому же объекту настроек, цели, игроку,
+-миру и тику Aura. Остальные запросы продолжают проверять физический луч.
++- `TriggerV2Controller.tick`: повторный захват после потери цели проверяет срок
++  памяти **до** обновления времени наблюдения. В 0.4.9 один краткий промах и
++  долгая пауза в обработке тиков позволяли использовать просроченное подтверждение.
++  Теперь такое возвращение ждёт установленный срок подтверждения заново.
++- Короткая потеря цели в пределах памяти сохраняет прежнее подтверждение и часы
++  частоты атак. Нулевая память не мешает непрерывному сопровождению. Значения CPS,
++  заряда, дальности, доводки, критов и настройки других модулей не менялись.
++- Сборка выбирает `java.exe`/`javac.exe` на Windows, использует UTF-8 и файлы
++  аргументов javac для длинных путей. Добавлен `Build-Windows.ps1`.
++- TestKit по умолчанию не исполняет код входного JAR; ошибки целостности всегда
++  получают FAIL-отчёт. Добавлены проверки повреждений, метаданных и дубликатов.
+ 
+-Игра: **Minecraft 1.21.11, Java 21, собственный N9Ezz Universal Loader**.
+-`fabric-loader-0.19.3-1.21.4` — выбранное имя файла, профиля и каталогов.
+-Оно не меняет версию Minecraft и не устанавливает официальный Fabric Loader 0.19.3.
++Для потерянной цели после зависания может появиться предусмотренная настройкой
++пауза подтверждения. Это исправление просроченного состояния, не увеличение
++частоты атак и не измеренное улучшение результата дуэли.
+ 
+ ## Установка
+ 
+-1. Один раз запустите ванильный Minecraft **1.21.11** в лаунчере.
+-2. Закройте игру и лаунчер. Запустите **`fabric-loader-0.19.3-1.21.4.jar`**
+-   через Java 21 и укажите основную папку `.minecraft`.
+-   Это установщик; класть его в `mods` не нужно.
+-3. Выберите профиль **`fabric-loader-0.19.3-1.21.4`** и запустите игру.
+-4. В меню включите KillAura. Для выбора со всех сторон установите
+-   **«Угол поиска (°)» = 360**; старое сохранённое значение может быть меньше.
+-5. «Выбирать за блоками» можно отключить, чтобы запрашивать только открытые цели.
+-   Для проверки неподвижности камеры отключите отдельный AimBot и доводку
+-   Triggerbot: собственное наведение этих модулей не является поворотом Aura.
++1. Установите Java 21 и один раз запустите ванильный Minecraft **1.21.11**.
++2. Закройте игру и лаунчер. Запустите `fabric-loader-0.19.3-1.21.4.jar` и укажите
++   основную папку `.minecraft`.
++3. Выберите отдельный профиль `fabric-loader-0.19.3-1.21.4` в лаунчере.
+ 
+-```text
+-java -jar fabric-loader-0.19.3-1.21.4.jar --install --game-dir "путь/к/.minecraft"
++```powershell
++java -jar .\fabric-loader-0.19.3-1.21.4.jar --self-test
++java -jar .\fabric-loader-0.19.3-1.21.4.jar --install --game-dir "$env:APPDATA\.minecraft"
+ ```
+ 
+-Папка игры, как в 0.4.7: `.minecraft/profiles/fabric-loader-0.19.3-1.21.4`.
+-Профиль версии: `versions/fabric-loader-0.19.3-1.21.4`.
+-Служебные данные: `.fabric-loader-0.19.3-1.21.4`.
+-Настройки внутри папки игры: `config/fabric-loader-0.19.3-1.21.4`,
+-`fabric-loader-0.19.3-1.21.4/config` и `fabric-loader-0.19.3-1.21.4.cfg`.
++Имя `fabric-loader-0.19.3-1.21.4` сохранено ради совместимости установленных
++версий. Игра остаётся **1.21.11**, загрузчик остаётся N9Ezz. Это имя не означает
++установку официального Fabric. Папка игры:
++`.minecraft/profiles/fabric-loader-0.19.3-1.21.4`.
+ 
+-Настройки копируются сначала из `profiles/client-1.21.11`, затем из
+-`pulsevisuals-universal`, затем из `n9ezz-universal`. Уже существующие новые
+-настройки имеют приоритет. Старые файлы и профили сохраняются для возврата;
+-установщик не удаляет их. Логи и сторонние моды не переносятся.
+-Если запрошенное имя версии уже занято другой установкой Fabric,
+-установщик сообщает `VERSION_ID_CONFLICT` и сохраняет её файлы.
++Существующие настройки и пользовательское имя профиля сохраняются. Установщик
++делает резервную копию метаданных лаунчера, не удаляет старые профили и отказывается
++заменять чужую установку с совпавшим ID. При повторной установке с теми же входами
++проверяется отсутствие изменений. Настройки интерфейса и команды `/pv status`,
++`/pv combat`, `/cfg pvp`, `/pv juggernaut`, `/pv speedresume`, `/pv hide` и `/pv show`
++сохранены. Для изолированной проверки Triggerbot не применяйте общий профиль
++`/pv combat`: он меняет сразу несколько боевых настроек.
+ 
+-## Настройки и поведение KillAura
++## Сборка и проверка
+ 
+-Поля старых настроек вращения сохранены для загрузки конфигурации и команд,
+-но сами настройки скрыты в меню и не управляют поведением. Прежний выбранный
+-режим поворота, скорость поворота и пауза после мыши не возвращают автоповорот.
+-Ручное движение мыши остаётся обычным управлением камерой.
++Полный вызов и SHA-256 входов: [docs/BUILD.md](docs/BUILD.md).
++Для Windows: [Build-Windows.ps1](Build-Windows.ps1). Нужны Python 3.10+, полный
++JDK 21 и отдельно перечисленные проверенные входные JAR/архивы. Сборка работает
++без сети, но не может восстановить недоступный полный исходник Pulse.
+ 
+-Дальность сопровождения и дистанция атаки по-прежнему различаются. Выбор на
+-пяти блоках не означает разрешённый удар на пяти блоках. Заряд оружия, условия
+-настоящего крита, запрет атаки во время использования предмета, смена оружия,
+-серверные коррекции и бюджет отправки по игровому тику сохраняются. «Второй удар
+-сразу» остаётся отдельной настройкой и не гарантирует второй урон.
++`verification.json` и `fabric-loader-0.19.3-1.21.4-test-reports.zip` содержат
++результаты конкретного запуска. В ZIP включены `audit.json` и `audit.txt`.
++Предварительно исходная 0.4.9 заново прошла 34 группы тестов; её JAR и исходники
++воспроизвели опубликованные SHA-256. Новый тест сначала воспроизводит ошибку
++на 0.4.9, затем проверяет исправленный контроллер.
+ 
+-В `/pv status` у Aura указаны `камера=ручная`, состояние выбора за блоками,
+-цель, дистанции, запросы и отправки. Подтверждение урона сервером не измеряется.
+-В общем режиме Juggernaut сохраняется прежний выбор общей видимой цели.
++Java-тесты выполняют реальные контроллеры с зависимостями-фикстурами, сетевые
++классы, загрузчик и установщик с временными метаданными игры. Они не являются
++запуском Minecraft или испытанием серверной регистрации урона. Windows GUI,
++живой Minecraft, отдельный RaidMine-сеанс, захват пакетов, RTT и потери:
++**SKIPPED/UNRUN**. Порядок локальной проверки описан в
++[docs/GAMEPLAY-TEST-RU.md](docs/GAMEPLAY-TEST-RU.md).
+ 
+-## Имя в диагностике
+-
+-Отображаемое имя встроенного клиентского модуля в метаданных — **Anti invise**.
+-Соответствующие собственные текстовые метки используют это же имя. Меню остаётся
+-N9Ezz / PulseVisuals, ID модуля и Java-пакеты сохранены для совместимости.
+-
+-`logs/latest.log` и `crash-reports` не переписываются и не очищаются. JVM,
+-Minecraft, Mixin и сторонние моды могут записать реальные имена классов, пути,
+-ошибки и список загрузчиков. Это косметическое имя, а не полное скрытие файлов
+-или подмена отчётов о сбоях; такое скрытие в эту сборку не добавлено.
+-Файлы и процесс игры остаются доступны Everything, System Informer и обычным
+-средствам Windows. Имя профиля не означает установку официального Fabric.
+-
+-## Hitboxes — сохранены из 0.4.8
+-
+-В 0.4.7 обработчик ручного выбора проверял только настоящее тело игрока.
+-Расширение участвовало в отображении и поиске цели Triggerbot, но обычный клик
+-по выступающей части рамки оставался промахом. Ошибка воспроизведена тестом
+-на опубликованном JAR 0.4.7; тот же сценарий проходит на новой сборке.
+-
+-Теперь сначала выполняется обычный выбор Minecraft. Если он нашёл сущность,
+-этот результат сохраняется. После промаха проверяются расширенные рамки игроков,
+-в том числе выступающие за пределы узкой области первоначального поиска.
+-Ближайшее допустимое пересечение выбирает игрока для обычного ручного клика.
+-Камера не поворачивается, автоматический или дополнительный удар не создаётся.
+-
+-Существующие настройки X/Y/Z, мощности, дальности и «Только текущая цель»
+-сохранены. Новая настройка «Ручные удары по рамке» позволяет отдельно отключить
+-этот путь, сохранив рамку и работу Triggerbot. «Доводка Triggerbot» управляет
+-только доводкой Triggerbot и не отключает ручной выбор.
+-
+-Настоящее тело должно оставаться в доступной дистанции атаки, а точка тела
+-и пересечение рамки — видимыми. Расширение не меняет коллизии, серверное тело
+-или разрешённую дальность. Сервер с собственной проверкой направления может
+-отклонить такой удар. Проверки на RaidMine в этой среде не выполнялись.
+-
+-Для проверки используйте близкую открытую цель в тестовом мире: наведитесь
+-на выступающую часть рамки и нажмите обычную кнопку атаки. В `/pv status`
+-появляется число **выборов по рамке (кадры)**. Это число успешных проверок прицела,
+-а не кликов, отправленных ударов или подтверждений урона. При включённом
+-«Только текущая цель» область доступна только для уже сопровождаемого игрока.
+-
+-## Speed — сохранён из 0.4.7
+-
+-| Настройка | По умолчанию | Действие |
+-| --- | --- | --- |
+-| Импульсный Speed | Включён | Чередовать активную фазу и фазу без добавочного разгона |
+-| Тиков разгона | 1 | Длительность активной фазы, 1–20 тиков |
+-| Тиков без разгона | 1 | Длительность паузы, 1–100 тиков |
+-| Автоповтор после коррекции | Включён | Ждать 20 тиков и повторить; максимум 3 повтора за включение |
+-| Свободное движение | Включено | Сохранять управление WASD при автоповоротах боевых модулей |
+-| Сила Speed | Прежнее сохранённое значение; для новой настройки 15 | Шкала 1–100 и прежний расчёт скорости сохранены |
+-
+-Обычно один игровой тик занимает 50 мс. При настройке 1/1 получается
+-10 импульсов в секунду при 20 TPS. В паузе модуль не записывает новую скорость:
+-инерция, трение, обычный ввод и серверная скорость продолжают обрабатываться.
+-Отключение «Импульсный Speed» возвращает непрерывный режим.
+-
+-Миллион переключений внутри тика не создаёт миллион шагов движения. В коде
+-нет фонового цикла переключений: фаза определяется номером тика. На игрока
+-допускается одна запись разгона за тик, включая повторное включение модуля.
+-Скорость не умножается на уже ускоренную скорость; вертикальное движение
+-и направление камеры этот механизм не меняет.
+-
+-После серверной коррекции сначала выполняется обычная обработка пакета.
+-При включённом автоповторе модуль ждёт 20 тиков. Входящий пакет скорости
+-может продлить ожидание до окончания его отдельного окна в 10 тиков.
+-После трёх возобновлений следующая коррекция останавливает Speed до ручного
+-включения или `/pv speedresume`. Отключённый автоповтор оставляет прежнюю
+-ручную паузу. Дисконнект, смена мира/игрока и `/pv hide` отменяют автоповторы.
+-
+-`/pv status` показывает текущую фазу, причину ожидания, число коррекций и
+-использованные повторы. Это наблюдения клиента. Работу ускорения на RaidMine
+-и обход его проверок эта сборка не подтверждает.
+-
+-## Остальные команды и интерфейс
+-
+-Старые команды сохранены: `/pv combat`, `/cfg pvp`, `/pv juggernaut [off]`,
+-`/pv hide`, `/pv show`, `/pv status`, `/cfg combat`, `/pv speedresume`.
+-Для проверки только KillAura не требуется применять `/pv combat`: эта команда
+-меняет сохранённые настройки боевых модулей и выключает Speed.
+-
+-Обычное меню называется N9Ezz; после `/pv hide` — PulseVisuals. Сохранены
+-83 исходных модуля Pulse и 7 модулей N9Ezz. CF Assistant в сборку не входит.
+-
+-## Проверки и исходники
+-
+-Результаты сборки находятся в `verification.json` и
+-`fabric-loader-0.19.3-1.21.4-test-reports.zip`. Регрессия воспроизводит поворот
+-камеры 0.4.8 на заднюю цель, затем проверяет отсутствие этого поворота в 0.4.9.
+-Проверены выбор сбоку/сзади, независимость от старых режимов, запрос закрытой
+-цели и отмена при отключении соответствующей настройки, смене мира, тика,
+-модуля или дистанции. Чужой запрос не может использовать правило Aura.
+-
+-Исполняются настоящие контроллеры на небольших фикстурах мира, а также
+-проверяются точки подключения в собранном обработчике атаки. Сохранены тесты
+-Hitboxes, Speed, установки, сети и побайтной неизменности остальных модулей.
+-
+-Живой запуск Minecraft на Windows, игровой сеанс RaidMine и захват пакетов
+-в этой среде не выполнялись. Успех программных тестов не доказывает обход античита.
+-
+-`fabric-loader-0.19.3-1.21.4-sources.zip` содержит исходники Loader, собственные
+-контроллеры и ASM-патчи. Полные исходники исходного движка Pulse недоступны;
+-сборка использует проверенный бинарный вход. Рецепт и контрольные суммы:
+-[docs/BUILD.md](docs/BUILD.md). История: [CHANGELOG-RU.md](CHANGELOG-RU.md).
++Архитектура: [docs/ARCHITECTURE-RU.md](docs/ARCHITECTURE-RU.md).
++История: [CHANGELOG-RU.md](CHANGELOG-RU.md). Ранее реализованные функции и их
++ограничения описаны в [docs/RELEASE-049-RU.md](docs/RELEASE-049-RU.md).
++Процент необнаружения и превосходство над другими клиентами не измерялись.
+--- a/build.py
++++ b/build.py
+@@ -19,7 +19,7 @@
+ import zipfile
+ 
+ ROOT = Path(__file__).resolve().parent
+-VERSION = "0.4.9-experimental"
++VERSION = "0.5.0-experimental"
+ BASELINE_SHA = "5dbb9f72359d8371b7069dbf4f421c358c28a8c11af23e06c9182ec793aada6a"
+ LOADER_SHA = "b81855307752b3d20df9bff66175914d2a118e7cce688c15e24b153952c60b3b"
+ SOURCES_SHA = "b5451d33b11c389cadf1b8d85879a9f625faed60022f6cc9dae87ff9864dc960"
+@@ -28,6 +28,7 @@
+ RELEASE_044_CLIENT_SHA = "289bc41b5878b087d2800e1bac973c137e30245ec96a99ab88f87b2fd4e67bd0"
+ CLIENT_RESOURCE = "embedded/fabric-loader-0.19.3-1.21.4-1.5.3.jar"
+ PREVIOUS_SHA = "beba4df31d06867796e68667ed7fb972b47ad7ecd5988eba188b02305fbb3732"
++REFERENCE_SHA = "31ab41905d0d2b35120dea95416a8e22c2c63e1438b555e4d0fdc0a94f976935"
+ PRESERVED = (
+     "ru/pulse/mixin/ClientConnectionMixin.class",
+     "pulse/n9ezz/mixin/CombatEntityMixin.class",
+@@ -39,6 +40,26 @@
+ 
+ def sha(data: bytes) -> str:
+     return hashlib.sha256(data).hexdigest()
++
++
++def java_tool(home: Path, name: str, windows: bool | None = None) -> Path:
++    """JDK executable names differ on Windows; never guess a different JDK."""
++    windows = os.name == "nt" if windows is None else windows
++    result = home / "bin" / (name + (".exe" if windows else ""))
++    if not result.is_file():
++        raise RuntimeError(f"A complete JDK 21 is required; missing {result}")
++    return result
++
++
++def write_javac_args(path: Path, arguments: list[str | Path]) -> None:
++    # javac's argument-file grammar is not shell quoting. Quoted escaped entries
++    # handle Windows backslashes/spaces and avoid CreateProcess's length limit.
++    def quote(value):
++        value = str(value)
++        if any(c in value for c in "\r\n\x00"):
++            raise ValueError("Newline/NUL in javac argument")
++        return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
++    path.write_text("\n".join(map(quote, arguments)) + "\n", encoding="utf-8")
+ 
+ 
+ def pinned(path: Path, expected: str) -> bytes:
+@@ -84,12 +105,15 @@
+ 
+ def code_snapshot() -> dict[str, bytes]:
+     result = {}
+-    for folder in ("src", "tools", "tests", "docs", "loader-overlay"):
++    for folder in ("src", "tools", "tests", "docs", "loader-overlay", "testkit"):
+         for path in sorted((ROOT / folder).rglob("*")):
+-            if path.is_file() and path.suffix in (".java", ".py", ".md", ".json", ".txt"):
++            if folder == "testkit" and any(part in ("reports", "baseline-before", "supplied-reports", "__pycache__") for part in path.relative_to(ROOT / folder).parts):
++                continue
++            if path.is_file() and path.suffix in (".java", ".py", ".md", ".json", ".txt", ".ps1"):
+                 result[path.relative_to(ROOT).as_posix()] = path.read_bytes()
+     result["build.py"] = Path(__file__).read_bytes()
+     result["loader_brand.py"] = (ROOT / "loader_brand.py").read_bytes()
++    result["Build-Windows.ps1"] = (ROOT / "Build-Windows.ps1").read_bytes()
+     for name in ("README.md", "CHANGELOG.md", "README-RU.md", "CHANGELOG-RU.md", "LICENSE"):
+         path = ROOT / name
+         if path.is_file():
+@@ -110,20 +134,22 @@
+     parser.add_argument("--offline", action="store_true", help="Accepted for clarity; all builds are offline.")
+     parser.add_argument("--previous-release", type=Path,
+                         default=Path("/workspace/n9ezz-hitboxes-048/dist/fabric-loader-0.19.3-1.21.4.jar"),
+-                        help="Pinned 0.4.8 release for byte-for-byte preservation of other modules")
++                        help="Pinned 0.4.8 release for historical camera regression")
++    parser.add_argument("--reference-release", type=Path,
++                        default=Path("/workspace/n9ezz-aura-049/dist/fabric-loader-0.19.3-1.21.4.jar"),
++                        help="Pinned 0.4.9 release for Trigger regression and unchanged-module checks")
+     parser.add_argument("--skip-tests", action="store_true", help="Development-only; outputs are marked UNVERIFIED.")
+     args = parser.parse_args()
+-    for key in ("baseline", "minecraft", "original_loader", "original_sources", "java_home", "output"):
++    for key in ("baseline", "minecraft", "original_loader", "original_sources", "java_home", "output", "previous_release", "reference_release"):
+         setattr(args, key, getattr(args, key).resolve())
+     if args.output.exists() and any(args.output.iterdir()):
+         raise RuntimeError("Output directory must be empty; choose a fresh --output directory: " + str(args.output))
+-    java = args.java_home / "bin/java"
+-    javac = args.java_home / "bin/javac"
+-    if not java.is_file() or not javac.is_file():
+-        raise RuntimeError("A complete JDK 21 is required; use --java-home.")
++    java = java_tool(args.java_home, "java")
++    javac = java_tool(args.java_home, "javac")
+     env = os.environ.copy()
+     env["JAVA_HOME"] = str(args.java_home)
+     env["PATH"] = str(args.java_home / "bin") + os.pathsep + env.get("PATH", "")
++    env["PYTHONUTF8"] = "1"
+     version = subprocess.run([str(java), "-version"], capture_output=True, text=True, check=True, env=env).stderr
+     if 'version "21.' not in version and 'version "21"' not in version:
+         raise RuntimeError("This build requires JDK 21: " + version.splitlines()[0])
+@@ -133,6 +159,7 @@
+     pinned(args.original_loader, LOADER_SHA)
+     pinned(args.original_sources, SOURCES_SHA)
+     pinned(args.previous_release, PREVIOUS_SHA)
++    pinned(args.reference_release, REFERENCE_SHA)
+     own = code_snapshot()
+     original_sources = safe_entries(args.original_sources)
+     build_root = ROOT / "build"
+@@ -145,16 +172,16 @@
+         "version": VERSION, "status": "UNVERIFIED" if args.skip_tests else "IN_PROGRESS",
+         "jdk": version.splitlines()[0], "tests": [],
+         "inputs": {"networkClientSha256": BASELINE_SHA, "minecraftCompileApiSha256": MINECRAFT_SHA, "originalLoaderSha256": LOADER_SHA,
+-                   "originalSourcesSha256": SOURCES_SHA, "previousReleaseSha256": PREVIOUS_SHA},
++                   "originalSourcesSha256": SOURCES_SHA, "previousReleaseSha256": PREVIOUS_SHA, "referenceReleaseSha256": REFERENCE_SHA},
+         "realMinecraftLaunch": "UNRUN", "RaidMineServerSession": "UNRUN",
+-        "networkPacketCapture": "UNRUN", "anticheatBypass": "NOT_CLAIMED",
++        "networkPacketCapture": "UNRUN", "liveRTTAndLoss": "SKIPPED: isolated server and game session not provided", "windowsExecution": "automated build/test host" if os.name == "nt" else "SKIPPED: non-Windows host", "anticheatBypass": "NOT_CLAIMED",
+         "gameVersion": "1.21.11", "registryCount": 90, "artifactLabel": "fabric-loader-0.19.3-1.21.4",
+         "sourceScope": "Loader source and new ASM patches; original Pulse engine full source is unavailable.",
+     }
+ 
+     def run(label: str, command: list[str | Path], cwd: Path = stage, test: bool = False) -> None:
+         command = [str(item) for item in command]
+-        result = subprocess.run(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
++        result = subprocess.run(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+         (reports / (label + ".txt")).write_text(result.stdout, encoding="utf-8")
+         print(f"[{label}] exit={result.returncode}", flush=True)
+         if test:
+@@ -169,8 +196,10 @@
+         if not files:
+             raise RuntimeError(f"No source files for {label}: {source}")
+         target.mkdir(parents=True)
+-        run(label, [javac, "--release", "21", "-proc:none", "-encoding", "UTF-8", "-Xlint:all",
++        arguments = reports / (label + ".args")
++        write_javac_args(arguments, ["--release", "21", "-proc:none", "-encoding", "UTF-8", "-Xlint:all",
+                     "-cp", os.pathsep.join(map(str, cp)), "-d", target, *files])
++        run(label, [javac, "@" + str(arguments)])
+ 
+     try:
+         source_root = stage / "original"
+@@ -220,11 +249,13 @@
+         report["clientIdenticalTo044"] = False
+         report["clientSize"] = len(client_data)
+         if not args.skip_tests:
+-            run("UnchangedModules049", [sys.executable, own_root / "tests/unchanged_modules049.py", args.previous_release, client], test=True)
++            run("UnchangedModules050", [sys.executable, own_root / "tests/unchanged_modules050.py", args.reference_release, client], test=True)
++            run("AuditToolTests", [sys.executable, own_root / "tests/test_audit.py"], test=True)
++            run("BuildToolTests", [sys.executable, own_root / "tests/test_build_tools.py"], test=True)
+             own_tests = stage / "update-test-classes"
+             compile_java("compile-update-tests", own_root / "tests", own_tests, [helpers, patch_classes, *deps])
+             test_cp = os.pathsep.join(map(str, [own_tests, helpers, patch_classes, *deps]))
+-            run("RewriteTest", [java, "-Xverify:all", "-cp", test_cp, "RewriteTest", args.baseline, client, own_root / "tests/fixtures", args.minecraft, args.previous_release], test=True)
++            run("RewriteTest", [java, "-Xverify:all", "-cp", test_cp, "RewriteTest", args.baseline, client, own_root / "tests/fixtures", args.minecraft, args.previous_release, args.reference_release], test=True)
+             for test_main in ("CombatTest", "ModuleTest", "FeatureTest", "BrandTest", "NetworkTest", "Aura046Test", "Targeting046Test", "Speed046Test", "Speed047Test", "Hitboxes048Test", "Aura049Test"):
+                 run(test_main, [java, "-Xverify:all", "-cp", test_cp, test_main, args.baseline, client], test=True)
+         brand_spec=importlib.util.spec_from_file_location("loader_brand", own_root / "loader_brand.py")
+@@ -233,7 +264,7 @@
+         replace_exact(loader_root / "src/main/java/dev/n9ezz/loader/core/BundledClientContract.java", OLD_CLIENT_SHA, client_sha)
+         replace_exact(loader_root / "src/main/java/dev/n9ezz/loader/core/BundledClientContract.java", "41_062_124L", str(len(client_data)) + "L")
+         replace_exact(loader_root / "src/main/java/dev/n9ezz/loader/launch/Main.java", "0.4.1-experimental", VERSION, 2)
+-        replace_exact(loader_root / "src/main/java/dev/n9ezz/loader/core/DependencyResolver.java", '"n9ezz", "0.4.1"', '"n9ezz", "0.4.9"', 2)
++        replace_exact(loader_root / "src/main/java/dev/n9ezz/loader/core/DependencyResolver.java", '"n9ezz", "0.4.1"', '"n9ezz", "0.5.0"', 2)
+         replace_exact(loader_root / "scripts/installer_smoke.py", OLD_CLIENT_SHA, client_sha)
+         replace_exact(loader_root / "scripts/installer_smoke.py", "41_062_124", str(len(client_data)))
+         # The registry restores 83 original Pulse modules and keeps seven N9Ezz modules.
+@@ -262,9 +293,7 @@
+             original_write_zip(path, entries)
+         upstream.write_zip = package_zip
+         classes = upstream.BUILD / "classes"
+-        run("compile-loader", [javac, "--release", "21", "-proc:none", "-encoding", "UTF-8", "-Xlint:all",
+-                               "-cp", os.pathsep.join(map(str, deps)), "-d", classes,
+-                               *sorted((loader_root / "src/main/java").rglob("*.java"))])
++        compile_java("compile-loader", loader_root / "src/main/java", classes, deps)
+         upstream.copy_resources(loader_root / "src/main/resources", classes)
+         demo_classes = upstream.BUILD / "demo-classes"
+         compile_java("compile-demo", loader_root / "src/demo/java", demo_classes, [classes, *deps])
+@@ -307,6 +336,7 @@
+             run("packaged-self-test", [java, "-jar", jar, "--self-test"], cwd=loader_root, test=True)
+             run("installer", [sys.executable, loader_root / "scripts/installer_smoke.py", jar], cwd=loader_root, test=True)
+             run("installer-migration", [sys.executable, own_root / "tests/installer_migration.py", jar], cwd=loader_root, test=True)
++            run("OfflineAudit", [sys.executable, own_root / "testkit/tools/audit_n9ezz.py", args.reference_release, jar, "--out", reports], test=True)
+             for script in ("test_gameplay_acceptance.py", "test_cross_platform_acceptance.py"):
+                 run(script[:-3], [sys.executable, loader_root / "scripts" / script], cwd=loader_root, test=True)
+         # A build can use stable snapshots; never silently publish after sources changed.
+--- /dev/null
++++ b/docs/ARCHITECTURE-RU.md
+@@ -0,0 +1,88 @@
++# Архитектура N9Ezz 0.5.0
++
++## Входные материалы
++
++Оба предоставленных архива исходников имеют SHA-256
++`6f8ba628dfe524e2b60e5724e4c3e966297e1c327daae57a96b09846b1207847`.
++Это исходники выпуска 0.4.9. Приложенный TestKit содержит старый отчёт об ином
++`N9Ezz-Compat` JAR, но сам JAR и исходник CompatibilityProfile отсутствуют.
++Этот отчёт не используется как доказательство результатов текущего выпуска.
++
++Доступны исходники собственного Loader, собственных контроллеров и ASM-патчей.
++Полный исходник движка Pulse недоступен: `build.py` компилирует изменения и
++накладывает их на закреплённый SHA-256 клиента network.1. Старые исходники в
++`upstream-source/client` местами предшествуют этому двоичному клиенту. Для
++спорных мест проверяется фактический байткод, а не только старый Java-текст.
++
++## Запуск и загрузка
++
++| Участок | Реализация | Назначение |
++| --- | --- | --- |
++| Установочный JAR | `dev.n9ezz.loader.launch.Main` | CLI, self-test, окно установки |
++| Установка | `loader-overlay/src/main/java/dev/n9ezz/loader/launch/InstallService.java` | Отдельная версия/профиль, резервные копии, проверки конфликтов, перенос конфигурации |
++| Вход игры | `dev.n9ezz.loader.launch.GameBootstrap` | Собственный runtime, загрузка модулей и преобразования классов |
++| Встроенный клиент | `META-INF/n9ezz/embedded-client.json` | Ресурс, размер, SHA-256, Minecraft 1.21.11 и Java 21 |
++| Инициализация Pulse | `ru.pulse.Pulse`, `pulse.TestMod` | `main` entrypoints из фактического fabric.mod.json встроенного клиента |
++| Дополнения N9Ezz | `pulse.n9ezz.N9Ezz` | Реестр и события боевых модулей |
++
++Fabric-совместимые дескрипторы и API исполняются слоем совместимости N9Ezz.
++Это не установка второго официального Fabric Loader. В версии лаунчера
++`inheritsFrom=1.21.11`, `mainClass=dev.n9ezz.loader.launch.GameBootstrap`,
++одна собственная координата библиотеки. Файловая метка
++`fabric-loader-0.19.3-1.21.4` сохранена для обновления существующих установок.
++
++13 зависимостей сборки восстанавливаются из закреплённого оригинального Loader
++и проверяются по `universal-loader/deps-lock.json`: ASM 9.9.1 (5 компонентов),
++Gson 2.13.2, TOMLJ 1.1.1, ANTLR 4.11.1, Checker Qual 3.21.2,
++Sponge Mixin 0.17.2+mixin.0.8.7, MixinExtras 0.5.4, Tiny Remapper 0.13.0,
++Class Tweaker 0.3.0-beta.2. Компоненты ASM: core, util, tree, analysis, commons; всего зависимостей **13**. Список
++в lock-файле, а не краткое перечисление, является контрактом сборки.
++Fabric API и вспомогательные контрактные артефакты берутся из закреплённых
++оригинальных исходников. Minecraft compile API используется только для
++компиляции/фикстур и не включается в распространяемый JAR.
++
++## Игровые события и атаки
++
++`ClientTickEvents.START_CLIENT_TICK` начинает цикл `CombatDispatch.begin` и
++очищает старый запрос. Боевые контроллеры обрабатывают клиентское событие
++`ClientTickEvent`. Aura и Triggerbot штатно взаимоисключаются; наличие общих
++`e.m2()` не доказывает взаимную отмену атак при штатном включении.
++
++`AuraController.tick` выбирает цель; `TriggerV2Controller.tick` проверяет луч,
++память/подтверждение цели и при необходимости прежнюю доводку. Они передают
++запрос в `e.m7`. `CombatTickMixin` вызывает `CombatDispatch.afterMovement` после
++обычного метода движения `class_746.method_3136`. Обработчик `e.m8` повторно
++проверяет запрос и выполняет обычную атаку. `AttackCallbackMixin` учитывает
++ручной удар в том же бюджете. Реальный CombatDispatch содержит защиту от
++повторного callback и `finally` закрытия окна отправки, хотя старый исходник
++этого класса в upstream может не содержать этих исправлений.
++
++Монотонное время `System.nanoTime()` управляет локальным подтверждением и
++планированием. Это не серверное время и не синхронизация тиков с сервером.
++Отправленный запрос не подтверждает нанесённый урон. При высоком RTT и потерях
++Minecraft/TCP может доставлять события с задержкой; реальные значения должны
++измеряться в игровом сеансе по сценарию GAMEPLAY-TEST-RU.md.
++
++## Пакеты и состояние сервера
++
++`ClientConnectionMixin` публикует события пакетов; `NetworkPacketPolicy`
++запрещает отмену перечисленных обязательных ответов (телепорт, скорость,
++keepalive/ping/pong, обновления инвентаря и ответы на действия). Это конкретный
++набор имён Minecraft 1.21.11. `CombatEntityMixin.n9ezzVelocity` сохраняет
++серверную скорость. Наблюдатели в `MixinClientPlayNetworkHandler` уведомляют
++Speed после обработки коррекции/скорости. Сетевые классы сохранены побайтно.
++Подробности и границы автоматических проверок: NETWORK-RU.md.
++
++## Модули, настройки и границы изменения
++
++`u0/u1/u3/u20` — существующие классы модулей, к которым подключены собственные
++AuraController, TriggerV2Controller, HitboxV3/TargetV2Runtime и SpeedV2Runtime.
++`CombatSession` хранит общую цель Juggernaut. `SliderSetting`, `BooleanSetting`
++и `ModeSetting` остаются в прежней системе конфигурации; ASM-патчи сохраняют
++старые поля и добавленные ранее ссылки на настройки. В этом выпуске новых
++настроек и миграции их значений нет.
++
++Реестр остаётся 90 модулей: 83 Pulse и 7 N9Ezz. Классы меню,
++Aura/Hitboxes/Speed и остальных функций должны совпадать с 0.4.9. Проверка
++`tests/unchanged_modules050.py` сравнивает все классы клиента, разрешая изменить
++только TriggerV2Controller и два класса с номером версии в сообщениях.
+--- a/docs/BUILD.md
++++ b/docs/BUILD.md
+@@ -1,18 +1,14 @@
+-# Reproducible build: 0.4.9-experimental
++# Reproducible build: 0.5.0-experimental
+ 
+-This release changes Aura camera ownership and request selection. Preservation
+-checks pin the unchanged Hitboxes/Trigger/Speed/menu/transport implementations to
+-0.4.8. The 83 Pulse modules and seven N9Ezz modules remain; installation paths
+-stay as in 0.4.7. The client display name is Anti invise; IDs and stack traces
+-are retained. No global log filter or crash-report rewriting is installed.
+-The filename/profile label fabric-loader-0.19.3-1.21.4 is user-selected:
+-the custom loader and game/compile API remain N9Ezz and Minecraft 1.21.11.
+-It retains the 0.4.5 installer/profile recovery and migration regressions. The
+-packaged client must differ from the published 0.4.4/0.4.5 client; four protected
+-network/physics classes remain byte-identical to the pinned network.1 input.
+-Tests execute on Linux; Windows GUI/launcher execution is not claimed.
++This is the existing N9Ezz custom Loader and embedded client, not a new Fabric mod.
++The only gameplay change is bounded Trigger confirmation memory on reacquisition
++following a missed ray and a client tick stall. All other client classes must be
++byte-identical to 0.4.9 except two strings displaying the new release version.
++Minecraft remains 1.21.11 / Java 21; historical filenames and installation paths
++remain compatible. The included TestKit audit is static unless explicitly opted
++into execution of a trusted CompatibilityProfile (absent from this release).
+ 
+-The build runs offline. Python 3 and a complete JDK 21 are required. It compiles
++The build runs offline. Python 3.10+ and a complete JDK 21 are required. It compiles
+ the supplied custom Loader sources and applies the included, independently
+ implemented ASM patches to the pinned `network.1` client. The full original
+ Pulse client source is not available; this is a source release of the Loader
+@@ -27,9 +23,12 @@
+ | `N9Ezz-Universal-Loader-0.4.1-experimental.jar` | `b81855307752b3d20df9bff66175914d2a118e7cce688c15e24b153952c60b3b` |
+ | `N9Ezz-Universal-Loader-0.4.1-experimental-sources.zip` | `b5451d33b11c389cadf1b8d85879a9f625faed60022f6cc9dae87ff9864dc960` |
+ | The `embedded/n9ezz-client-1.5.3.jar` entry from the `network.1` Loader | `5dbb9f72359d8371b7069dbf4f421c358c28a8c11af23e06c9182ec793aada6a` |
+-| Published 0.4.8 `fabric-loader-0.19.3-1.21.4.jar` for regression/preservation checks | `beba4df31d06867796e68667ed7fb972b47ad7ecd5988eba188b02305fbb3732` |
++| Published 0.4.8 `fabric-loader-0.19.3-1.21.4.jar` for historical regression | `beba4df31d06867796e68667ed7fb972b47ad7ecd5988eba188b02305fbb3732` |
++| Published 0.4.9 Loader for Trigger regression / preservation | `31ab41905d0d2b35120dea95416a8e22c2c63e1438b555e4d0fdc0a94f976935` |
+ 
+ Pinned original release files:
++
++- [Reference 0.4.9 Loader](https://github.com/NoEzpls/N9Ezz/raw/22b5437766a87872c30eb478146d315ea7cf6e01/fabric-loader-0.19.3-1.21.4.jar)
+ 
+ - [Original Loader](https://github.com/NoEzpls/N9Ezz/raw/d91f283441a4983349b6dbf6bf4385d458b4923c/N9Ezz-Universal-Loader-0.4.1-experimental.jar)
+ - [Original sources](https://github.com/NoEzpls/N9Ezz/raw/d91f283441a4983349b6dbf6bf4385d458b4923c/N9Ezz-Universal-Loader-0.4.1-experimental-sources.zip)
+@@ -63,7 +62,8 @@
+   --minecraft /path/to/minecraft-1.21.11-intermediary.jar \
+   --original-loader /path/to/N9Ezz-Universal-Loader-0.4.1-experimental.jar \
+   --original-sources /path/to/N9Ezz-Universal-Loader-0.4.1-experimental-sources.zip \
+-  --previous-release /path/to/previous-0.4.8/fabric-loader-0.19.3-1.21.4.jar
++  --previous-release /path/to/previous-0.4.8/fabric-loader-0.19.3-1.21.4.jar \
++  --reference-release /path/to/reference-0.4.9/fabric-loader-0.19.3-1.21.4.jar
+ ```
+ 
+ The output directory defaults to `dist`. Each build gets a fresh staging
+@@ -117,3 +117,47 @@
+ inspects the packaged controller and real shared dispatch call sites. The
+ Minecraft method is extracted only into a temporary test directory and is never
+ published. Tests do not boot Minecraft or emulate server acceptance of attacks.
++
++## Windows
++
++Use `Build-Windows.ps1` from the update source directory:
++
++```powershell
++.\Build-Windows.ps1 -JavaHome 'C:\Java\jdk-21' `
++  -Baseline 'C:\N9EzzInputs\client.jar' `
++  -Minecraft 'C:\N9EzzInputs\minecraft-1.21.11-intermediary.jar' `
++  -OriginalLoader 'C:\N9EzzInputs\N9Ezz-Universal-Loader-0.4.1-experimental.jar' `
++  -OriginalSources 'C:\N9EzzInputs\N9Ezz-Universal-Loader-0.4.1-experimental-sources.zip' `
++  -PreviousRelease 'C:\N9EzzInputs\0.4.8.jar' `
++  -ReferenceRelease 'C:\N9EzzInputs\0.4.9.jar' `
++  -Output 'C:\N9EzzBuild\dist-050'
++```
++
++The six inputs are required, verified by hash and not downloaded by the script.
++`JAVA_HOME` is passed explicitly; the build selects `.exe` tools on Windows.
++The javac argument file avoids command length problems and escapes path spaces
++and backslashes. Source/staging transformations use UTF-8.
++
++The inherited security tests deliberately create symbolic links to verify their
++rejection. A Windows shell must have permission to create symlinks; without it,
++the full test suite fails instead of silently claiming PASS. This build does not
++change system policies or elevate automatically. Use a test environment with that
++capability and a short output path if Windows path-length support is restricted.
++
++The Windows script was prepared/reviewed; actual PowerShell/Windows execution is
++SKIPPED in the Linux cloud. Tests simulate Windows executable naming and execute
++real Java compilation from a path with spaces and Cyrillic characters on Linux.
++
++## Evidence added in 0.5.0
++
++`RewriteTest` must reproduce the Trigger retention failure against the pinned
++0.4.9 JAR before the patched controller passes the same scenario. Its `e` dispatch
++is a fixture, so it proves request timing, not accepted server damage. The
++unchanged production network classes are executed by the separate `NetworkTest`.
++`AuditToolTests`, `BuildToolTests`, and `OfflineAudit` are part of the full build.
++The audit JSON/TXT are included in the test-report ZIP.
++
++The supplied 0.4.9 was rebuilt before edits and reproduced both its JAR and source
++ZIP SHA-256 with all 34 prior test groups passing. New release status is recorded
++in its own verification.json; live RTT/loss, game and server sessions stay SKIPPED.
++See GAMEPLAY-TEST-RU.md for the isolated server procedure.
+--- /dev/null
++++ b/docs/GAMEPLAY-TEST-RU.md
+@@ -0,0 +1,105 @@
++# Отдельный игровой стенд — воспроизводимый сценарий
++
++Статус этого документа: **сценарий подготовлен; игровой запуск и сетевые
++измерения SKIPPED**. В облаке выполнены Java/фикстурные тесты и запуск CLI
++установщика, но нет подготовленного игрового сеанса, тестовой учётной записи
++или адреса выделенного сервера владельца. Этот документ не является отчётом
++об испытании RaidMine. Присланные старые отчёты не заменяют новый прогон.
++
++## Подготовка
++
++Используйте отдельный сервер владельца, отдельные разрешённые тестовые аккаунты
++и согласованные сценарии. Для проверки специфики RaidMine нужна предоставленная
++владельцем тестовая сборка защиты с той же версией и настройками. Обычный локальный
++Minecraft-сервер проверяет базовую совместимость, но не поведение этой защиты.
++
++На Windows установите JDK 21 и Python 3.10+, подготовьте Minecraft 1.21.11.
++Сохраните отдельные копии профилей 0.4.9 и 0.5.0; не используйте один каталог
++конфигурации одновременно. Профиль 0.5.0 устанавливается командой из README.
++Сохраните SHA-256 обоих JAR, конфигураций клиента и сервера.
++
++Для своего локального сервера подготовьте отдельную папку с легально полученным
++`server.jar` нужной версии, примите его EULA самостоятельно и ограничьте доступ
++localhost или изолированной тестовой сетью. В отдельной консоли:
++
++```powershell
++& 'C:\Java\jdk-21\bin\java.exe' -Xms1G -Xmx2G -jar .\server.jar nogui
++```
++
++На сервере включите whitelist и добавьте только тестовые аккаунты. Адрес для
++локального стенда — `127.0.0.1:25565`. Данные доступа не помещайте в исходники.
++Проверяйте регистрацию ударов по серверному журналу/инструментированному тестовому
++плагину владельца, а не по анимации взмаха на клиенте.
++
++## Матрица
++
++Выполните каждый сценарий сначала на ванильном клиенте, затем 0.4.9 и 0.5.0.
++Используйте одинаковые настройки мира, цель, оружие и расстояния. Для боевых
++модулей отдельно сохраните настройки; `/pv combat` не подходит для сохранения
++контролируемого набора, поскольку меняет несколько параметров.
++
++| Сценарий | Что наблюдать | Критерий |
++| --- | --- | --- |
++| Запуск и повторная установка | launcher JSON, лог загрузчика, меню | Minecraft 1.21.11; 90 модулей; нет второго загрузчика или сброса конфигурации |
++| Triggerbot: непрерывная цель | запрос атаки и урон сервера | Соблюдены прежние настройки подтверждения/заряда/интервала |
++| Потеря прицела <150 мс при памяти 150 мс | возврат на ту же цель | Подтверждение сохраняется; новый интервал не ускоряется |
++| Потеря цели, остановка тиков клиента на 1 с, возврат | время наблюдения/подтверждения | 0.5.0 ждёт новое подтверждение; тест не требует искусственной задержки пакетов |
++| Память 0, подтверждение 100 мс | непрерывное сопровождение | Подтверждение завершается; нулевая память не обнуляет его каждый тик |
++| Ручная атака вместе с автоматической | серверные события атак, тики клиента | Ручной удар учитывается общим бюджетом |
++| Смена оружия, GUI, использование предмета | атаки и заряд | Нет применения старого заряда оружия или действия после смены состояния |
++| Телепорт/смена мира/дисконнект | коррекция, подтверждение, целевой UUID | Обработка обязательных ответов; нет повторной старой отложенной атаки |
++| Скорость от сервера | вектор до/после, тики | Серверная скорость обработана; Speed соблюдает существующую паузу |
++| Переключение Aura/Trigger | состояние модулей | Сохраняется штатное взаимоисключение |
++
++Сроки 100/150 мс в таблице задаются явно только для соответствующего теста.
++Это не новые значения по умолчанию. Для надёжной фиксации тиков используйте
++отладочную инструментированную сборку и исходные журналы стенда; production
++0.5.0 не содержит нового сетевого логгера или скрытого изменения времени.
++
++## RTT и потери
++
++Задержку и потери задавайте внешним сетевым стендом на выделенном интерфейсе
++тестовой VM/шлюза, которым управляет владелец. Не изменяйте интерфейс общего
++хоста, VPN или других игроков. Не задерживайте keepalive/телепорт из кода клиента.
++Minecraft Java использует TCP: потери вызывают повторную передачу/задержки;
++потеря IP-пакета не означает потерю игровой команды без восстановления.
++
++Пример для Linux-шлюза **только после выбора изолированного интерфейса**:
++
++```sh
++TEST_IF=veth_game_test
++sudo tc qdisc add dev "$TEST_IF" root netem delay 100ms 20ms loss 1%
++tc -s qdisc show dev "$TEST_IF"
++# После этого отдельного прогона удалите только созданное правило стенда:
++sudo tc qdisc del dev "$TEST_IF" root
++```
++
++`add` намеренно не заменяет существующее правило. Его ошибку нужно исследовать,
++а не молча заменять конфигурацию. Значение delay относится к одному направлению,
++если правило установлено только там. Записывайте фактически измеренный RTT;
++не объявляйте параметр netem итоговым пингом. На Windows используйте отдельную
++тестовую VM/шлюз или согласованный сетевой эмулятор.
++
++Профили испытания: без эмуляции; 100 мс задержки; 200 мс ±50 мс; 1% потерь;
++совместно 200 мс ±50 мс и 1% потерь. Для каждого выполните одинаковый сценарий
++30 раз, фиксируя фактические RTT, серверные TPS/MSPT и возможные дисконнекты.
++Количество попыток не является процентом необнаружения. Не сравнивайте прогоны
++при разных TPS, настройках защиты или условиях цели.
++
++## Данные и итог
++
++Сохраните в локальной папке `run-YYYYMMDD-HHMM/`:
++
++- `manifest.json`: SHA-256 клиента/сервера, версии JVM/игры/защиты, конфигурации,
++  сценарий, часы начала/окончания, профиль сети и параметры измерителя;
++- исходные `latest.log`, серверный журнал, журнал тестового плагина и доступные
++  записи коррекций/действий с привязкой к тику/монотонному времени;
++- `events.tsv`: `run`, `scenario`, `client_tick`, `server_tick`, `event`,
++  `target`, `sent`, `accepted`, `damage`, `rtt_ms`, `server_mspt`;
++- `result.json`: PASS/FAIL/SKIPPED отдельно для запуска, сценария и качества данных.
++
++Поле без наблюдаемого значения оставляйте пустым, не заменяйте его нулём.
++Различайте попытку отправки, фактическую отправку и подтверждённый сервером
++урон. Счётчики `/pv status` описывают клиентские действия. Не переписывайте
++исходные журналы; для передачи удаляйте личные данные только из отдельной копии.
++Успех офлайн-тестов не заполняет эту таблицу и не заменяет эти измерения.
+--- /dev/null
++++ b/docs/RELEASE-049-RU.md
+@@ -0,0 +1,173 @@
++# N9Ezz 0.4.9 Experimental — KillAura без поворота камеры
++
++KillAura выбирает цель независимо от направления прицела и передаёт её обычному
++обработчику атаки. Встроенное изменение yaw/pitch удалено из контроллера, включая
++обработчик кадров. Для целей сбоку и сзади больше не требуется поворот Aura.
++
++Новая настройка **«Выбирать за блоками»** разрешает клиентские запросы по закрытым
++целям в обычной дистанции. Она включена по умолчанию согласно запросу на этот
++режим. Запрос не равен подтверждённому урону: сервер может проверять направление,
++препятствия и отклонять его. Маскировка под ванильный трафик, обход RaidMine,
++отсутствие санкций и увеличение эффективности в миллион раз не реализованы
++и не подтверждены тестами этой сборки.
++
++Speed, Hitboxes 0.4.8 и контроллер Triggerbot сохранены. При отправке запроса
++новое правило применяется только к тому же объекту настроек, цели, игроку,
++миру и тику Aura. Остальные запросы продолжают проверять физический луч.
++
++Игра: **Minecraft 1.21.11, Java 21, собственный N9Ezz Universal Loader**.
++`fabric-loader-0.19.3-1.21.4` — выбранное имя файла, профиля и каталогов.
++Оно не меняет версию Minecraft и не устанавливает официальный Fabric Loader 0.19.3.
++
++## Установка
++
++1. Один раз запустите ванильный Minecraft **1.21.11** в лаунчере.
++2. Закройте игру и лаунчер. Запустите **`fabric-loader-0.19.3-1.21.4.jar`**
++   через Java 21 и укажите основную папку `.minecraft`.
++   Это установщик; класть его в `mods` не нужно.
++3. Выберите профиль **`fabric-loader-0.19.3-1.21.4`** и запустите игру.
++4. В меню включите KillAura. Для выбора со всех сторон установите
++   **«Угол поиска (°)» = 360**; старое сохранённое значение может быть меньше.
++5. «Выбирать за блоками» можно отключить, чтобы запрашивать только открытые цели.
++   Для проверки неподвижности камеры отключите отдельный AimBot и доводку
++   Triggerbot: собственное наведение этих модулей не является поворотом Aura.
++
++```text
++java -jar fabric-loader-0.19.3-1.21.4.jar --install --game-dir "путь/к/.minecraft"
++```
++
++Папка игры, как в 0.4.7: `.minecraft/profiles/fabric-loader-0.19.3-1.21.4`.
++Профиль версии: `versions/fabric-loader-0.19.3-1.21.4`.
++Служебные данные: `.fabric-loader-0.19.3-1.21.4`.
++Настройки внутри папки игры: `config/fabric-loader-0.19.3-1.21.4`,
++`fabric-loader-0.19.3-1.21.4/config` и `fabric-loader-0.19.3-1.21.4.cfg`.
++
++Настройки копируются сначала из `profiles/client-1.21.11`, затем из
++`pulsevisuals-universal`, затем из `n9ezz-universal`. Уже существующие новые
++настройки имеют приоритет. Старые файлы и профили сохраняются для возврата;
++установщик не удаляет их. Логи и сторонние моды не переносятся.
++Если запрошенное имя версии уже занято другой установкой Fabric,
++установщик сообщает `VERSION_ID_CONFLICT` и сохраняет её файлы.
++
++## Настройки и поведение KillAura
++
++Поля старых настроек вращения сохранены для загрузки конфигурации и команд,
++но сами настройки скрыты в меню и не управляют поведением. Прежний выбранный
++режим поворота, скорость поворота и пауза после мыши не возвращают автоповорот.
++Ручное движение мыши остаётся обычным управлением камерой.
++
++Дальность сопровождения и дистанция атаки по-прежнему различаются. Выбор на
++пяти блоках не означает разрешённый удар на пяти блоках. Заряд оружия, условия
++настоящего крита, запрет атаки во время использования предмета, смена оружия,
++серверные коррекции и бюджет отправки по игровому тику сохраняются. «Второй удар
++сразу» остаётся отдельной настройкой и не гарантирует второй урон.
++
++В `/pv status` у Aura указаны `камера=ручная`, состояние выбора за блоками,
++цель, дистанции, запросы и отправки. Подтверждение урона сервером не измеряется.
++В общем режиме Juggernaut сохраняется прежний выбор общей видимой цели.
++
++## Имя в диагностике
++
++Отображаемое имя встроенного клиентского модуля в метаданных — **Anti invise**.
++Соответствующие собственные текстовые метки используют это же имя. Меню остаётся
++N9Ezz / PulseVisuals, ID модуля и Java-пакеты сохранены для совместимости.
++
++`logs/latest.log` и `crash-reports` не переписываются и не очищаются. JVM,
++Minecraft, Mixin и сторонние моды могут записать реальные имена классов, пути,
++ошибки и список загрузчиков. Это косметическое имя, а не полное скрытие файлов
++или подмена отчётов о сбоях; такое скрытие в эту сборку не добавлено.
++Файлы и процесс игры остаются доступны Everything, System Informer и обычным
++средствам Windows. Имя профиля не означает установку официального Fabric.
++
++## Hitboxes — сохранены из 0.4.8
++
++В 0.4.7 обработчик ручного выбора проверял только настоящее тело игрока.
++Расширение участвовало в отображении и поиске цели Triggerbot, но обычный клик
++по выступающей части рамки оставался промахом. Ошибка воспроизведена тестом
++на опубликованном JAR 0.4.7; тот же сценарий проходит на новой сборке.
++
++Теперь сначала выполняется обычный выбор Minecraft. Если он нашёл сущность,
++этот результат сохраняется. После промаха проверяются расширенные рамки игроков,
++в том числе выступающие за пределы узкой области первоначального поиска.
++Ближайшее допустимое пересечение выбирает игрока для обычного ручного клика.
++Камера не поворачивается, автоматический или дополнительный удар не создаётся.
++
++Существующие настройки X/Y/Z, мощности, дальности и «Только текущая цель»
++сохранены. Новая настройка «Ручные удары по рамке» позволяет отдельно отключить
++этот путь, сохранив рамку и работу Triggerbot. «Доводка Triggerbot» управляет
++только доводкой Triggerbot и не отключает ручной выбор.
++
++Настоящее тело должно оставаться в доступной дистанции атаки, а точка тела
++и пересечение рамки — видимыми. Расширение не меняет коллизии, серверное тело
++или разрешённую дальность. Сервер с собственной проверкой направления может
++отклонить такой удар. Проверки на RaidMine в этой среде не выполнялись.
++
++Для проверки используйте близкую открытую цель в тестовом мире: наведитесь
++на выступающую часть рамки и нажмите обычную кнопку атаки. В `/pv status`
++появляется число **выборов по рамке (кадры)**. Это число успешных проверок прицела,
++а не кликов, отправленных ударов или подтверждений урона. При включённом
++«Только текущая цель» область доступна только для уже сопровождаемого игрока.
++
++## Speed — сохранён из 0.4.7
++
++| Настройка | По умолчанию | Действие |
++| --- | --- | --- |
++| Импульсный Speed | Включён | Чередовать активную фазу и фазу без добавочного разгона |
++| Тиков разгона | 1 | Длительность активной фазы, 1–20 тиков |
++| Тиков без разгона | 1 | Длительность паузы, 1–100 тиков |
++| Автоповтор после коррекции | Включён | Ждать 20 тиков и повторить; максимум 3 повтора за включение |
++| Свободное движение | Включено | Сохранять управление WASD при автоповоротах боевых модулей |
++| Сила Speed | Прежнее сохранённое значение; для новой настройки 15 | Шкала 1–100 и прежний расчёт скорости сохранены |
++
++Обычно один игровой тик занимает 50 мс. При настройке 1/1 получается
++10 импульсов в секунду при 20 TPS. В паузе модуль не записывает новую скорость:
++инерция, трение, обычный ввод и серверная скорость продолжают обрабатываться.
++Отключение «Импульсный Speed» возвращает непрерывный режим.
++
++Миллион переключений внутри тика не создаёт миллион шагов движения. В коде
++нет фонового цикла переключений: фаза определяется номером тика. На игрока
++допускается одна запись разгона за тик, включая повторное включение модуля.
++Скорость не умножается на уже ускоренную скорость; вертикальное движение
++и направление камеры этот механизм не меняет.
++
++После серверной коррекции сначала выполняется обычная обработка пакета.
++При включённом автоповторе модуль ждёт 20 тиков. Входящий пакет скорости
++может продлить ожидание до окончания его отдельного окна в 10 тиков.
++После трёх возобновлений следующая коррекция останавливает Speed до ручного
++включения или `/pv speedresume`. Отключённый автоповтор оставляет прежнюю
++ручную паузу. Дисконнект, смена мира/игрока и `/pv hide` отменяют автоповторы.
++
++`/pv status` показывает текущую фазу, причину ожидания, число коррекций и
++использованные повторы. Это наблюдения клиента. Работу ускорения на RaidMine
++и обход его проверок эта сборка не подтверждает.
++
++## Остальные команды и интерфейс
++
++Старые команды сохранены: `/pv combat`, `/cfg pvp`, `/pv juggernaut [off]`,
++`/pv hide`, `/pv show`, `/pv status`, `/cfg combat`, `/pv speedresume`.
++Для проверки только KillAura не требуется применять `/pv combat`: эта команда
++меняет сохранённые настройки боевых модулей и выключает Speed.
++
++Обычное меню называется N9Ezz; после `/pv hide` — PulseVisuals. Сохранены
++83 исходных модуля Pulse и 7 модулей N9Ezz. CF Assistant в сборку не входит.
++
++## Проверки и исходники
++
++Результаты сборки находятся в `verification.json` и
++`fabric-loader-0.19.3-1.21.4-test-reports.zip`. Регрессия воспроизводит поворот
++камеры 0.4.8 на заднюю цель, затем проверяет отсутствие этого поворота в 0.4.9.
++Проверены выбор сбоку/сзади, независимость от старых режимов, запрос закрытой
++цели и отмена при отключении соответствующей настройки, смене мира, тика,
++модуля или дистанции. Чужой запрос не может использовать правило Aura.
++
++Исполняются настоящие контроллеры на небольших фикстурах мира, а также
++проверяются точки подключения в собранном обработчике атаки. Сохранены тесты
++Hitboxes, Speed, установки, сети и побайтной неизменности остальных модулей.
++
++Живой запуск Minecraft на Windows, игровой сеанс RaidMine и захват пакетов
++в этой среде не выполнялись. Успех программных тестов не доказывает обход античита.
++
++`fabric-loader-0.19.3-1.21.4-sources.zip` содержит исходники Loader, собственные
++контроллеры и ASM-патчи. Полные исходники исходного движка Pulse недоступны;
++сборка использует проверенный бинарный вход. Рецепт и контрольные суммы:
++[docs/BUILD.md](docs/BUILD.md). История: [CHANGELOG-RU.md](CHANGELOG-RU.md).
+--- a/loader_brand.py
++++ b/loader_brand.py
+@@ -17,18 +17,18 @@
+     for area in ('src','scripts'):
+         for p in (loader_root/area).rglob('*'):
+             if not p.is_file() or p.suffix not in ('.java','.py','.json'): continue
+-            s=p.read_text()
++            s=p.read_text(encoding="utf-8")
+             for a,b in pairs.items():s=s.replace(a,b)
+             # Some cache paths are assembled from a directory component, not a slash path.
+             s=s.replace('".n9ezz"', '".fabric-loader-0.19.3-1.21.4"').replace('/.n9ezz"', '/.fabric-loader-0.19.3-1.21.4"')
+             # No Java identifiers named N9Ezz occur in this loader implementation.
+             s=s.replace('N9Ezz-Universal-1.21.11','fabric-loader-0.19.3-1.21.4')
+             s=s.replace('N9Ezz','PulseVisuals')
+-            p.write_text(s)
++            p.write_text(s, encoding="utf-8")
+     for p in overlay.rglob('*.java'):
+         target=loader_root/p.relative_to(overlay);target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,target)
+     smoke=loader_root/'scripts/installer_smoke.py'
+-    s=smoke.read_text()
++    s=smoke.read_text(encoding="utf-8")
+     h=bytearray(hashlib.md5(b'fabric-loader-0.19.3-1.21.4:custom:1.21.11').digest());h[6]=(h[6]&15)|48;h[8]=(h[8]&63)|128
+     s=s.replace('PROFILE = "fabric-loader-0.19.3-1.21.4"','PROFILE = "fabric-loader-0.19.3-1.21.4"\nPROFILE_KEY = "'+h.hex()+'"')
+     s=s.replace('{PROFILE: {"name": "User profile"}}','{PROFILE_KEY: {"name": "User profile"}}')
+@@ -47,7 +47,7 @@
+     case("foreign profile with same id is preserved")'''
+     replacement = '''    foreign_report = json.loads(invoke(foreign_profile, True).stdout)
+     foreign_path = foreign_profile / "launcher_profiles.json"
+-    foreign_root = json.loads(foreign_path.read_text())
++    foreign_root = json.loads(foreign_path.read_text(encoding="utf-8"))
+     assert foreign_report["profileKey"] != PROFILE_KEY
+     assert foreign_root["profiles"][PROFILE_KEY] == {"name": "User profile"}
+     assert len(foreign_root["profiles"]) == 2
+@@ -63,4 +63,4 @@
+     if s.count(previous) != 1:
+         raise RuntimeError("Pinned foreign-profile test fixture changed; inspect before updating")
+     s=s.replace(previous, replacement)
+-    smoke.write_text(s)
++    smoke.write_text(s, encoding="utf-8")
+--- a/src/main/java/pulse/n9ezz/CombatStatus.java
++++ b/src/main/java/pulse/n9ezz/CombatStatus.java
+@@ -4,7 +4,7 @@
+ public final class CombatStatus {
+     private CombatStatus() {}
+     public static String describe() {
+-        return "PulseVisuals 0.4.9: " + CombatSession.status()
++        return "PulseVisuals 0.5.0: " + CombatSession.status()
+                 + "\n" + AuraController.diagnostics()
+                 + "\nHitboxes/Trigger: " + TargetV2Runtime.diagnostics()
+                 + "\nSpeed: " + SpeedV2Runtime.diagnostics()
+--- a/src/main/java/pulse/n9ezz/TriggerV2Controller.java
++++ b/src/main/java/pulse/n9ezz/TriggerV2Controller.java
+@@ -21,12 +21,16 @@
+     public TriggerV2Controller(u1 module){this.module=module;}
+     public class_1657 target(){return current;}
+     public void reset(){current=null;watched=null;world=actor=null;acquiredAt=lastSeen=0;aligning=false;clock.m0();misses.m0();e.m2();TargetV2Runtime.reason("Triggerbot сброшен");}
++    private boolean memoryExpired(long now){
++        double grace=retainMs.get();
++        return !Double.isFinite(grace)||now<lastSeen
++                ||now-lastSeen>Math.max(0,Math.min(500,grace))*1_000_000d;
++    }
+     private void miss(long now){
+         current=null;aligning=false;e.m2();TargetV2Runtime.reason("прицел вне допустимой цели");
+         // Keep the clock: clearing it here erased the preceding attempt's interval.
+         // Confirmation memory is separate, bounded, and never permits an off-ray hit.
+-        double grace=retainMs.get();
+-        if(!Double.isFinite(grace)||now-lastSeen>Math.max(0,Math.min(500,grace))*1_000_000d){watched=null;acquiredAt=0;}
++        if(memoryExpired(now)){watched=null;acquiredAt=0;}
+     }
+     public void tick(){tick(System.nanoTime());}
+     /** Exposed for deterministic behavior tests; production tick supplies monotonic time. */
+@@ -53,9 +57,14 @@
+         // Shared mode cannot silently attack a different player that crosses the ray.
+         if(CombatSession.juggernaut()&&found!=CombatSession.target())found=null;
+         if(found==null||!d.m21(found,module.invisible.get(),module.unarmored.get())||d.m14(found)>range){miss(now);return;}
++        UUID id=found.method_5667();
++        // A stalled client may not deliver a second miss() before reacquisition.
++        // Check the previous observation BEFORE refreshing lastSeen; otherwise a
++        // stale UUID retains confirmation indefinitely. Continuous tracking is
++        // unaffected, including retainMs=0, and the pacing clock is not reset.
++        boolean confirmAgain=!id.equals(watched)||(current==null&&memoryExpired(now));
+         current=found;if(!retained)lastSeen=now;
+-        UUID id=found.method_5667();
+-        if(!id.equals(watched)){watched=id;acquiredAt=now;e.m2();}
++        if(confirmAgain){watched=id;acquiredAt=now;e.m2();}
+         if(d.m28(range,false)!=found){
+             if(!expanded){aligning=false;return;}
+             if(AuraController.ownsView()){aligning=false;TargetV2Runtime.reason("наведением управляет KillAura");return;}
+--- /dev/null
++++ b/testkit/AGENTS.md
+@@ -0,0 +1,11 @@
++# Instructions for Codex in this repository
++
++- Project: N9Ezz custom loader for Minecraft Java **1.21.11**, targeting **Java 21**. The `fabric-loader-0.19.3-1.21.4` filename is a legacy label, not the target game version.
++- Never confuse archive checksum/unit-test success with a real Minecraft launch, RaidMine server result, or anti-cheat bypass.
++- Before and after changing source code, run the existing tests and `python tools/audit_n9ezz.py BASELINE_JAR CANDIDATE_JAR --out reports` when JARs are provided.
++- The offline audit must not launch a server, make network requests, or execute untrusted downloaded binaries.
++- For real gameplay testing, require an isolated server under the owner's control, a separate test account, logs/metrics and explicit test permissions. Do not test on public player sessions.
++- Report PASS/FAIL/SKIPPED separately; give exact commands and attach `reports/audit.json` and `reports/audit.txt`.
++- Do not state a guaranteed no-ban percentage. Calculate detection rates only from actual labeled tests with declared scenarios and sample sizes.
++- Never rewrite or hide server-side detection logs; retain all original test data.
++- Before editing mod behavior, make a backup and describe the diff and its tradeoffs.
+--- /dev/null
++++ b/testkit/Codex-PROMPT-RU.txt
+@@ -0,0 +1,12 @@
++Ты работаешь с проектом N9Ezz для Minecraft Java 1.21.11 (Java 21, custom loader).
++
++Задача: самостоятельно подготовить воспроизводимую сборку и регрессионные тесты, проверить бинарники и настроить автоматические испытания на МОЁМ ИЗОЛИРОВАННОМ тестовом сервере RaidMine при наличии доступа, который я отдельно предоставлю.
++
++1. Прочитай AGENTS.md, README, docs/BUILD.md, проанализируй реальную структуру сборки и несовпадение названий файлов с версией Minecraft.
++2. Выполни offline аудит исходного и изменённого JAR командой: python tools/audit_n9ezz.py BASELINE_JAR CANDIDATE_JAR --out reports.
++3. Проверь возможности сборки, Java 21, все зависимости и выполни доступные юнит-тесты. Если нужного бинарного ввода не хватает, перечисли конкретные отсутствующие файлы.
++4. Подготовь локальные игровые тесты: нормальная игра и согласованные проверки механики с включёнными серверными логами; сохраняй последовательности событий, срабатывания, пинг и тикрейт. Не вмешивайся в чужие игровые сессии.
++5. После каждого изменения собирай новый JAR, запускай тесты заново, сравнивай отчёты; не заявляй улучшение без измерений.
++6. Верни: JAR (если реально собран), source diff, команды воспроизведения, reports/audit.json, таблицу PASS/FAIL/SKIPPED и все ограничения.
++
++Не выдумывай процент антидетекта, отсутствие бана или результат запуска Minecraft. Не редактируй серверные логи для сокрытия обнаружений.
+--- /dev/null
++++ b/testkit/README-RU.md
+@@ -0,0 +1,23 @@
++# N9Ezz TestKit — проверка выпуска 0.5.0
++
++Аудитор основан на приложенном пользователем N9Ezz-Codex-TestKit. Файлы `audit.json`
++и `audit.txt` из исходного архива относились к другому N9Ezz-Compat JAR. Они не
++являются результатами этого выпуска и не включаются в новые отчёты. Класс
++CompatibilityProfile и тот JAR в исходниках 0.4.9 отсутствуют.
++
++```powershell
++.\Run-Tests.ps1 -Baseline 'C:\inputs\0.4.9.jar' -Candidate 'C:\release\fabric-loader-0.19.3-1.21.4.jar'
++```
++
++Или `python tools/audit_n9ezz.py OLD.jar NEW.jar --out reports` из этой папки.
++По умолчанию выполняется только чтение: CRC обоих архивов, безопасные имена,
++отсутствие дубликатов, лимиты распаковки, SHA-256/размер вложенного клиента,
++Minecraft 1.21.11 / Java 21 и побайтное сравнение файлов. Сетевых обращений нет.
++Ошибка записывается как FAIL и заменяет старый PASS, чтобы отчёт не устарел.
++
++Выполнение CompatibilityProfile возможно только для доверенного кандидата с
++явным `--run-profile-test`. Если класса нет, проверка SKIPPED, а не PASS.
++Аудитор не подтверждает запуск Minecraft, поведение при RTT/потерях, принятый
++сервером урон либо результаты античита. Для игры используйте
++`../docs/GAMEPLAY-TEST-RU.md`. Регрессионные тесты аудитора:
++`python ../tests/test_audit.py`.
+--- /dev/null
++++ b/testkit/Run-Tests.ps1
+@@ -0,0 +1,10 @@
++param(
++  [Parameter(Mandatory=$true)][string]$Baseline,
++  [Parameter(Mandatory=$true)][string]$Candidate
++)
++$ErrorActionPreference = 'Stop'
++$folder = Split-Path -Parent $MyInvocation.MyCommand.Path
++New-Item -ItemType Directory -Force -Path (Join-Path $folder 'reports') | Out-Null
++python (Join-Path $folder 'tools/audit_n9ezz.py') $Baseline $Candidate --out (Join-Path $folder 'reports')
++if ($LASTEXITCODE -ne 0) { throw "Audit failed, exit code $LASTEXITCODE" }
++Write-Host "Reports saved to $folder\reports"
+--- /dev/null
++++ b/testkit/tests/ProfileTests.java
+@@ -0,0 +1,15 @@
++import pulse.n9ezz.CompatibilityProfile;
++public class ProfileTests {
++ public static void main(String[] args) {
++  boolean expected=Boolean.parseBoolean(args[0]);
++  assert CompatibilityProfile.enabled()==expected;
++  assert CompatibilityProfile.allowDoubleAttack(true)==!expected;
++  assert CompatibilityProfile.filterVisible(true,false)==!expected;
++  assert CompatibilityProfile.filterVisible(true,true);
++  Object a=new Object(), b=new Object();
++  assert CompatibilityProfile.filterTarget(a,b)==(expected?null:a);
++  assert CompatibilityProfile.filterTarget(a,a)==a;
++  assert CompatibilityProfile.filterManualPick(a,b)==(expected?b:a);
++  System.out.println("PASS: compatibility="+expected);
++ }
++}
+--- /dev/null
++++ b/testkit/tools/audit_n9ezz.py
+@@ -0,0 +1,234 @@
++#!/usr/bin/env python3
++"""Read-only, offline inspection of N9Ezz custom-loader JAR files.
++
++Usage: python tools/audit_n9ezz.py BASELINE_JAR CANDIDATE_JAR [--out reports]
++The default audit never runs code from an input JAR or contacts a server.
++--run-profile-test opts into executing CompatibilityProfile from a TRUSTED build.
++"""
++from pathlib import Path, PurePosixPath
++import argparse
++import hashlib
++import io
++import json
++import os
++import re
++import shutil
++import stat
++import subprocess
++import tempfile
++import zipfile
++import zlib
++
++META = 'META-INF/n9ezz/embedded-client.json'
++KNOWN_CLASSES = [
++    'pulse/n9ezz/AuraController.class',
++    'pulse/n9ezz/TriggerV2Controller.class',
++    'pulse/n9ezz/HitboxV3.class',
++    'pulse/n9ezz/CompatibilityProfile.class',
++]
++MAX_JAR_BYTES = 256 * 1024 * 1024
++MAX_EXPANDED_BYTES = 512 * 1024 * 1024
++MAX_ENTRIES = 50_000
++MAX_META_BYTES = 64 * 1024
++
++
++def sha(data):
++    return hashlib.sha256(data).hexdigest()
++
++
++def safe_name(name):
++    # Reject ambiguous names before either zipfile or a class loader interprets
++    # them. Duplicate entries must never depend on first/last-entry precedence.
++    if not isinstance(name, str) or not name or '\\' in name or '\x00' in name or ':' in name:
++        raise ValueError('Unsafe archive path: ' + repr(name))
++    parts = name.rstrip('/').split('/')
++    if PurePosixPath(name).is_absolute() or any(p in ('', '.', '..') for p in parts):
++        raise ValueError('Unsafe archive path: ' + repr(name))
++    return name
++
++
++def checked_entries(archive, label):
++    entries = archive.infolist()
++    if len(entries) > MAX_ENTRIES:
++        raise ValueError(label + ': too many entries')
++    seen = set()
++    total = 0
++    for item in entries:
++        name = safe_name(item.orig_filename)
++        if name != item.filename or name in seen:
++            raise ValueError(label + ': duplicate or truncated entry: ' + repr(name))
++        seen.add(name)
++        if item.flag_bits & 1:
++            raise ValueError(label + ': encrypted entries are unsupported')
++        if stat.S_ISLNK(item.external_attr >> 16):
++            raise ValueError(label + ': symlink entry: ' + repr(name))
++        total += item.file_size
++        if item.file_size > MAX_JAR_BYTES or total > MAX_EXPANDED_BYTES:
++            raise ValueError(label + ': decompression budget exceeded')
++    broken = archive.testzip()
++    if broken:
++        raise ValueError(label + ': bad CRC: ' + broken)
++    return entries
++
++
++def unique_json(pairs):
++    result = {}
++    for key, value in pairs:
++        if key in result:
++            raise ValueError('Duplicate metadata field: ' + key)
++        result[key] = value
++    return result
++
++
++def validate_metadata(metadata):
++    if not isinstance(metadata, dict):
++        raise ValueError('Embedded metadata must be an object')
++    resource = safe_name(metadata.get('resource'))
++    if not resource.startswith('embedded/') or not resource.endswith('.jar'):
++        raise ValueError('Embedded resource must be an embedded/*.jar entry')
++    size = metadata.get('size')
++    if type(size) is not int or not 0 < size <= MAX_JAR_BYTES:
++        raise ValueError('Embedded size must be a positive bounded integer')
++    digest = metadata.get('sha256')
++    if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
++        raise ValueError('Embedded SHA-256 must be 64 lowercase hexadecimal digits')
++    # The filename is a historical label, never a source of target-version data.
++    if metadata.get('minecraft') != '1.21.11' or type(metadata.get('java')) is not int or metadata['java'] != 21:
++        raise ValueError('Unsupported target: expected Minecraft 1.21.11 / Java 21')
++    return resource
++
++
++def open_loader(path):
++    path = Path(path)
++    if path.stat().st_size > MAX_JAR_BYTES:
++        raise ValueError('Loader exceeds audit size budget: ' + str(path))
++    blob = path.read_bytes()
++    try:
++        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
++            checked_entries(archive, 'outer JAR')
++            if archive.getinfo(META).file_size > MAX_META_BYTES:
++                raise ValueError('Embedded metadata exceeds size budget')
++            metadata = json.loads(archive.read(META), object_pairs_hook=unique_json)
++            resource = validate_metadata(metadata)
++            if archive.getinfo(resource).file_size != metadata['size']:
++                raise ValueError('Embedded client size differs from metadata')
++            client = archive.read(resource)
++            if metadata['sha256'] != sha(client):
++                raise ValueError('Embedded client SHA-256 differs from metadata')
++            with zipfile.ZipFile(io.BytesIO(client)) as nested:
++                entries = checked_entries(nested, 'embedded JAR')
++                files = {item.filename: sha(nested.read(item)) for item in entries if not item.is_dir()}
++        return {'name': path.name, 'size': len(blob), 'sha256': sha(blob),
++                'metadata': metadata, 'client': client, 'files': files}
++    except (KeyError, json.JSONDecodeError, zipfile.BadZipFile) as error:
++        raise ValueError('Not a supported custom N9Ezz loader JAR: ' + str(error)) from error
++
++
++def java_profile_test(candidate, src, execute=False):
++    if 'pulse/n9ezz/CompatibilityProfile.class' not in candidate['files']:
++        return {'status': 'SKIPPED', 'reason': 'CompatibilityProfile is absent from this candidate'}
++    if not execute:
++        return {'status': 'SKIPPED', 'reason': 'Static audit; --run-profile-test is required to execute a trusted candidate'}
++    if not shutil.which('java') or not shutil.which('javac'):
++        return {'status': 'SKIPPED', 'reason': 'Requires JDK 21 (java + javac)'}
++    if not src.is_file():
++        return {'status': 'FAIL', 'reason': 'Missing ProfileTests.java'}
++    try:
++        for executable in ('java', 'javac'):
++            version = subprocess.run([executable, '-version'], capture_output=True, text=True, timeout=20)
++            output = (version.stdout + version.stderr).strip()
++            pattern = r'\bjavac 21(?:\.|\s|$)' if executable == 'javac' else r'\bversion "21(?:\.|"|-)'
++            if version.returncode or not re.search(pattern, output):
++                return {'status': 'SKIPPED', 'reason': 'JDK 21 required; ' + executable + ': ' + output[:300]}
++        with tempfile.TemporaryDirectory(prefix='n9ezz-test-') as td:
++            temp = Path(td)
++            (temp / 'client.jar').write_bytes(candidate['client'])
++            compile_result = subprocess.run(
++                ['javac', '--release', '21', '-proc:none', '-cp', str(temp / 'client.jar'), '-d', td, str(src)],
++                capture_output=True, text=True, timeout=60)
++            if compile_result.returncode:
++                return {'status': 'FAIL', 'reason': 'Compilation failed', 'stderr': compile_result.stderr[:2000]}
++            modes = {}
++            for enabled in ('true', 'false'):
++                command = ['java', '-ea', f'-Dn9ezz.compatibility={enabled}', '-cp',
++                           td + os.pathsep + str(temp / 'client.jar'), 'ProfileTests', enabled]
++                result = subprocess.run(command, capture_output=True, text=True, timeout=20)
++                modes[enabled] = {'exit_code': result.returncode, 'output': (result.stdout + result.stderr).strip()[:1200]}
++            return {'status': 'PASS' if all(r['exit_code'] == 0 for r in modes.values()) else 'FAIL', 'modes': modes}
++    except (OSError, subprocess.TimeoutExpired) as error:
++        return {'status': 'FAIL', 'reason': str(error)}
++
++
++def write_reports(folder, report):
++    lines = ['N9Ezz AUDIT: ' + report['status'], 'Scope: ' + report['scope']]
++    for check in report['checks']:
++        lines.append(check['name'] + ': ' + check['status'] + (' — ' + check['reason'] if 'reason' in check else ''))
++    if 'candidate' in report:
++        lines += [f"Target: Minecraft {report['game']} / Java {report['java']}",
++                  f"Build: {report['update_version']} / embedded version: {report['client_version']}",
++                  f"Embedded client changes: {len(report['changed_files'])} modified, {len(report['added_files'])} added, {len(report['removed_files'])} removed",
++                  'Modified classes:']
++        lines += ['  ' + name for name in report['changed_files'] if name.endswith('.class')]
++    lines.append('NOTE: No real Minecraft launch, RaidMine session, RTT/loss measurement or anti-cheat result is established by this audit.')
++    folder.mkdir(parents=True, exist_ok=True)
++    contents = {'audit.json': json.dumps(report, ensure_ascii=False, indent=2) + '\n',
++                'audit.txt': '\n'.join(lines) + '\n'}
++    for name, content in contents.items():
++        # A failed run replaces an earlier PASS report too; no stale success left.
++        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=folder, delete=False) as output:
++            output.write(content)
++            temporary = Path(output.name)
++        temporary.replace(folder / name)
++    print(contents['audit.txt'], end='')
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('baseline', type=Path)
++    parser.add_argument('candidate', type=Path)
++    parser.add_argument('--out', type=Path, default=Path('reports'))
++    parser.add_argument('--run-profile-test', action='store_true', help='Execute CompatibilityProfile from a trusted candidate; default is static only')
++    args = parser.parse_args(argv)
++    report = {'check': 'N9Ezz custom loader offline audit', 'status': 'FAIL',
++              'scope': 'Offline integrity and embedded differences; no Minecraft launch or server/network test',
++              'checks': [], 'real_minecraft_launch': 'SKIPPED', 'raidmine_session': 'SKIPPED',
++              'network_rtt_loss': 'SKIPPED', 'anticheat_bypass': 'NOT_TESTED'}
++    try:
++        a = open_loader(args.baseline)
++        b = open_loader(args.candidate)
++        changed = sorted(k for k in set(a['files']) & set(b['files']) if a['files'][k] != b['files'][k])
++        added = sorted(set(b['files']) - set(a['files']))
++        removed = sorted(set(a['files']) - set(b['files']))
++        test_src = Path(__file__).resolve().parent.parent / 'tests' / 'ProfileTests.java'
++        tests = java_profile_test(b, test_src, args.run_profile_test)
++        report.update({
++            'status': 'FAIL' if tests['status'] == 'FAIL' else 'PASS',
++            'baseline': {key: a[key] for key in ('name', 'size', 'sha256')},
++            'candidate': {key: b[key] for key in ('name', 'size', 'sha256')},
++            'game': b['metadata']['minecraft'], 'java': b['metadata']['java'],
++            'update_version': b['metadata'].get('updateVersion', 'UNSPECIFIED'),
++            'client_version': b['metadata'].get('version', 'UNSPECIFIED'),
++            'embedded_client_sha256': b['metadata']['sha256'],
++            'changed_files': changed, 'added_files': added, 'removed_files': removed,
++            'key_classes': {key: {'baseline': key in a['files'], 'candidate': key in b['files']} for key in KNOWN_CLASSES},
++            'compatibility_profile_unit_test': tests,
++        })
++        report['checks'] += [
++            {'name': 'Archive integrity (both inputs)', 'status': 'PASS'},
++            {'name': 'Metadata target, embedded SHA-256 and length', 'status': 'PASS'},
++            {'name': 'CompatibilityProfile unit test', **tests},
++        ]
++    # testzip() can raise a decompressor error before it returns a CRC failure.
++    # Replace the prior report in that case too: a stale PASS must not survive.
++    except (OSError, ValueError, RuntimeError, EOFError, zlib.error, zipfile.BadZipFile) as error:
++        report['checks'].append({'name': 'Archive integrity / metadata', 'status': 'FAIL', 'reason': str(error)})
++    report['checks'] += [
++        {'name': 'Minecraft and RaidMine session', 'status': 'SKIPPED', 'reason': 'Requires a separate game/server integration scenario'},
++        {'name': 'RTT and loss behavior', 'status': 'SKIPPED', 'reason': 'No live transport in this static audit'},
++    ]
++    write_reports(args.out, report)
++    return 1 if report['status'] == 'FAIL' else 0
++
++
++if __name__ == '__main__':
++    raise SystemExit(main())
+--- a/tests/RewriteTest.java
++++ b/tests/RewriteTest.java
+@@ -9,7 +9,7 @@
+ /** Runs production controllers against a deterministic client/world fixture. Not a live duel. */
+ public final class RewriteTest {
+     public static void main(String[] args)throws Exception {
+-        if(args.length!=5)throw new IllegalArgumentException("baseline.jar updated.jar fixture-directory minecraft-api.jar previous-loader.jar");
++        if(args.length!=6)throw new IllegalArgumentException("baseline.jar updated.jar fixture-directory minecraft-api.jar previous048-loader.jar reference049-loader.jar");
+         Path fixture=Path.of(args[2]),temp=Files.createTempDirectory("pulsevisuals-rewrite-");
+         try{
+             Path classes=temp.resolve("classes");Files.createDirectories(classes);
+@@ -45,8 +45,22 @@
+                 if(!reproduced)throw new AssertionError("Camera rotation regression not reproduced in pinned 0.4.8");
+                 System.out.println("Reproduced 0.4.8: rear target rotates the player camera");
+             }
++            Path reference=temp.resolve("reference-client.jar");
++            try(ZipFile loader=new ZipFile(args[5])) {
++                Files.write(reference,loader.getInputStream(loader.getEntry("embedded/fabric-loader-0.19.3-1.21.4-1.5.3.jar")).readAllBytes());
++            }
++            try(URLClassLoader l=new URLClassLoader(new URL[]{classes.toUri().toURL(),reference.toUri().toURL()},ClassLoader.getPlatformClassLoader())) {
++                boolean reproduced=false;
++                try{l.loadClass("Trigger050Probe").getMethod("main",String[].class).invoke(null,(Object)new String[]{});}
++                catch(java.lang.reflect.InvocationTargetException e) {
++                    reproduced=e.getCause() instanceof AssertionError && e.getCause().getMessage().equals("expired confirmation must not survive a stalled reacquisition");
++                    if(!reproduced)throw new AssertionError("Trigger regression failed for an unrelated reason",e.getCause());
++                }
++                if(!reproduced)throw new AssertionError("Trigger confirmation regression not reproduced in pinned 0.4.9");
++                System.out.println("Reproduced 0.4.9: expired Trigger confirmation survives stalled reacquisition");
++            }
+             try(URLClassLoader l=new URLClassLoader(new URL[]{classes.toUri().toURL(),Path.of(args[1]).toUri().toURL()},ClassLoader.getPlatformClassLoader())){
+-                try{for(String probe:List.of("RewriteProbe", "Aura046Probe", "Targeting046Probe", "Integrated046Probe", "Speed047Probe", "Hitboxes048Probe", "Aura049Probe")) l.loadClass(probe).getMethod("main",String[].class).invoke(null,(Object)new String[]{});}
++                try{for(String probe:List.of("RewriteProbe", "Aura046Probe", "Targeting046Probe", "Integrated046Probe", "Speed047Probe", "Hitboxes048Probe", "Aura049Probe", "Trigger050Probe")) l.loadClass(probe).getMethod("main",String[].class).invoke(null,(Object)new String[]{});}
+                 catch(java.lang.reflect.InvocationTargetException e){throw new AssertionError("Actual controller fixture failed",e.getCause());}
+             }
+             // Replace only the four fixture module implementations with the actual patched
+--- a/tests/fixtures/Integrated046Probe.txt
++++ b/tests/fixtures/Integrated046Probe.txt
+@@ -39,7 +39,7 @@
+  }
+  static void diagnostics(){
+   String status=CombatStatus.describe();
+-  for(String section:new String[]{"0.4.9","KillAura:","Hitboxes/Trigger:","Speed:","fixture native attempts=","подтверждение урона сервером не измеряется"})check(status.contains(section),"status includes "+section);
++  for(String section:new String[]{"0.5.0","KillAura:","Hitboxes/Trigger:","Speed:","fixture native attempts=","подтверждение урона сервером не измеряется"})check(status.contains(section),"status includes "+section);
+  }
+  static void firstTickMovement(){
+   RewriteProbe.world();var mc=class_310.method_1551();var player=mc.field_1724;
+--- /dev/null
++++ b/tests/fixtures/Trigger050Probe.txt
+@@ -0,0 +1,79 @@
++import pulse.n9ezz.*;
++import net.minecraft.*;
++
++/** Runs the production Trigger controller with a deterministic clock and ray fixture. */
++public final class Trigger050Probe {
++    private static final class_310 mc=class_310.method_1551();
++    private static int checks;
++    private static final long START=1_000_000_000L;
++    private static void check(boolean value,String why){checks++;if(!value)throw new AssertionError(why);}
++    private static TriggerV2Controller fresh(){
++        RewriteProbe.world();RewriteProbe.target(1,0,2,10);
++        N9Ezz.TRIGGER.exactHit.set(true);N9Ezz.TRIGGER.confirmation.set(100);
++        return new TriggerV2Controller(N9Ezz.TRIGGER);
++    }
++    private static void ready(TriggerV2Controller controller){
++        controller.tick(START);controller.tick(START+100_000_000L);
++        check(e.requests==1,"initial target confirmed once");
++    }
++    private static void miss(TriggerV2Controller controller,long now){
++        mc.field_1724.yaw=90;controller.tick(now);
++        check(controller.target()==null,"missing ray has no active target");
++        mc.field_1724.yaw=0;
++    }
++    public static void main(String[] args){
++        TriggerV2Controller controller=fresh();ready(controller);
++        miss(controller,START+120_000_000L);
++        // No intervening miss callback runs while the client is stalled. The
++        // grace period must be evaluated BEFORE refreshing lastSeen on return.
++        controller.tick(START+1_000_000_000L);
++        check(e.requests==1,"expired confirmation must not survive a stalled reacquisition");
++        controller.tick(START+1_099_999_999L);
++        check(e.requests==1,"new confirmation waits for its complete duration");
++        controller.tick(START+1_100_000_000L);
++        check(e.requests==2,"reacquired target attacks after fresh confirmation");
++
++        controller=fresh();ready(controller);c clock=e.lastClock;
++        clock.m3(START+100_000_000L);
++        miss(controller,START+120_000_000L);controller.tick(START+130_000_000L);
++        check(e.requests==2&&e.lastClock==clock,"brief miss retains confirmation and the existing pacing clock");
++        check(!clock.m2(START+130_000_000L,10,0,1,1),"retention does not reset the attack interval");
++
++        controller=fresh();ready(controller);miss(controller,START+120_000_000L);
++        controller.tick(START+250_000_000L);
++        check(e.requests==2,"inclusive 150ms retention boundary preserves prior behavior");
++        controller=fresh();ready(controller);miss(controller,START+120_000_000L);
++        controller.tick(START+250_000_001L);
++        check(e.requests==1,"one nanosecond beyond retention requires confirmation");
++
++        controller=fresh();controller.retainMs.set(0);
++        controller.tick(START);controller.tick(START+50_000_000L);controller.tick(START+100_000_000L);
++        check(e.requests==1,"zero miss retention must not prevent continuously tracked confirmation");
++        miss(controller,START+120_000_000L);controller.tick(START+130_000_000L);
++        check(e.requests==1,"zero retention requires new confirmation after loss");
++
++        controller=fresh();ready(controller);miss(controller,START+120_000_000L);
++        controller.retainMs.set(Float.NaN);controller.tick(START+130_000_000L);
++        check(e.requests==1,"invalid retention cannot authorize stale confirmation");
++
++        controller=fresh();ready(controller);miss(controller,START+120_000_000L);
++        mc.field_1687.players.clear();RewriteProbe.target(2,0,2,10);
++        controller.tick(START+130_000_000L);
++        check(e.requests==1,"different player never inherits confirmation");
++
++        controller=fresh();ready(controller);miss(controller,START+120_000_000L);
++        mc.field_1687=new class_638();RewriteProbe.target(1,0,2,10);
++        controller.tick(START+130_000_000L);
++        check(e.requests==1,"world replacement discards confirmation even for the same UUID");
++        controller=fresh();ready(controller);miss(controller,START+120_000_000L);
++        mc.field_1724=new class_746();mc.field_1724.id=100;
++        controller.tick(START+130_000_000L);
++        check(e.requests==1,"player replacement discards confirmation");
++
++        controller=fresh();ready(controller);miss(controller,START+120_000_000L);
++        InterfaceMode.hidden=true;controller.tick(START+125_000_000L);
++        InterfaceMode.hidden=false;controller.tick(START+130_000_000L);
++        check(e.requests==1,"pause clears confirmation");
++        System.out.println("Trigger050Probe PASS: "+checks+" assertions; production controller, fixture world/dispatcher; no live server");
++    }
++}
+--- /dev/null
++++ b/tests/test_audit.py
+@@ -0,0 +1,158 @@
++"""Negative and positive tests of the read-only uploaded TestKit auditor."""
++from pathlib import Path
++import contextlib
++import hashlib
++import importlib.util
++import io
++import json
++import tempfile
++import unittest
++from unittest.mock import patch
++import warnings
++import zipfile
++import struct
++
++ROOT = Path(__file__).resolve().parents[1]
++spec = importlib.util.spec_from_file_location('audit', ROOT / 'testkit/tools/audit_n9ezz.py')
++audit = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(audit)
++
++
++def archive(entries):
++    output = io.BytesIO()
++    with warnings.catch_warnings(), zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as z:
++        warnings.simplefilter('ignore', UserWarning)
++        for name, data in entries:
++            z.writestr(name, data)
++    return output.getvalue()
++
++
++class AuditTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.tmp.cleanup)
++        self.root = Path(self.tmp.name)
++
++    def jar(self, entries=None, overrides=None, outer=None):
++        client = archive(entries if entries is not None else [('fixture.class', b'NOT EXECUTABLE')])
++        meta = dict(resource='embedded/client.jar', size=len(client), sha256=hashlib.sha256(client).hexdigest(),
++                    minecraft='1.21.11', java=21, updateVersion='fixture')
++        meta.update(overrides or {})
++        path = self.root / ('input-' + str(len(list(self.root.glob('*.jar')))) + '.jar')
++        path.write_bytes(archive(outer if outer is not None else [
++            (audit.META, json.dumps(meta)), ('embedded/client.jar', client)]))
++        return path
++
++    def test_static_audit_never_executes_candidate(self):
++        p = self.jar([('pulse/n9ezz/CompatibilityProfile.class', b'NOT EXECUTABLE')])
++        with patch.object(audit.subprocess, 'run', side_effect=AssertionError('executed input')), contextlib.redirect_stdout(io.StringIO()):
++            self.assertEqual(audit.main([str(p), str(p), '--out', str(self.root / 'reports')]), 0)
++        report = json.loads((self.root / 'reports/audit.json').read_text())
++        self.assertEqual(report['status'], 'PASS')
++        self.assertEqual(report['compatibility_profile_unit_test']['status'], 'SKIPPED')
++        self.assertEqual(report['changed_files'], [])
++
++    def test_absent_profile_is_skipped(self):
++        value = audit.open_loader(self.jar())
++        self.assertEqual(audit.java_profile_test(value, Path('absent.java'), True)['status'], 'SKIPPED')
++
++    def test_target_comes_from_metadata(self):
++        for overrides in ({'minecraft': '1.21.4'}, {'java': 17}, {'java': True}, {'java': '21'}):
++            with self.subTest(overrides=overrides), self.assertRaisesRegex(ValueError, 'Unsupported target'):
++                audit.open_loader(self.jar(overrides=overrides))
++
++    def test_sha_and_size_are_checked(self):
++        for overrides in ({'sha256': '0' * 64}, {'size': 1}, {'size': True}, {'size': -1}, {'sha256': 'not a digest'}):
++            with self.subTest(overrides=overrides), self.assertRaises(ValueError):
++                audit.open_loader(self.jar(overrides=overrides))
++
++    def test_resource_cannot_escape_archive(self):
++        for value in ('../client.jar', '/client.jar', 'C:/client.jar', 'embedded/../client.jar', 'embedded/client.txt', None):
++            with self.subTest(value=value), self.assertRaises(ValueError):
++                audit.open_loader(self.jar(overrides={'resource': value}))
++
++    def test_unsafe_and_duplicate_nested_names(self):
++        for name in ('../x.class', 'a//x.class', 'a/./x.class', '/x.class', 'C:/x.class', 'a\\x.class'):
++            with self.subTest(name=name), self.assertRaises(ValueError):
++                audit.open_loader(self.jar([(name, b'a')]))
++        with self.assertRaisesRegex(ValueError, 'duplicate'):
++            audit.open_loader(self.jar([('same.class', b'a'), ('same.class', b'b')]))
++
++    def test_duplicate_outer_and_metadata_fields(self):
++        with self.assertRaisesRegex(ValueError, 'duplicate'):
++            audit.open_loader(self.jar(outer=[(audit.META, '{}'), (audit.META, '{}')]))
++        with self.assertRaisesRegex(ValueError, 'Duplicate metadata'):
++            audit.open_loader(self.jar(outer=[(audit.META, '{"size":1,"size":2}')]))
++
++    def test_symlink_is_rejected(self):
++        link = zipfile.ZipInfo('link.class')
++        link.create_system = 3
++        link.external_attr = 0o120777 << 16
++        with self.assertRaisesRegex(ValueError, 'symlink'):
++            audit.open_loader(self.jar([(link, b'target')]))
++
++    def test_corrupt_crc_is_rejected(self):
++        p = self.jar(outer=[('payload', b'UNIQUE-CONTENT')])
++        data = p.read_bytes().replace(b'UNIQUE-CONTENT', b'BROKEN-CONTENT')
++        p.write_bytes(data)
++        with self.assertRaisesRegex(ValueError, 'CRC'):
++            audit.open_loader(p)
++
++    def test_budgets_apply_before_decompression(self):
++        p = self.jar()
++        with patch.object(audit, 'MAX_JAR_BYTES', 1), self.assertRaisesRegex(ValueError, 'budget'):
++            audit.open_loader(p)
++        with patch.object(audit, 'MAX_ENTRIES', 1), self.assertRaisesRegex(ValueError, 'too many'):
++            audit.open_loader(p)
++        with patch.object(audit, 'MAX_EXPANDED_BYTES', 1), self.assertRaisesRegex(ValueError, 'budget'):
++            audit.open_loader(p)
++
++    def test_failed_run_replaces_previous_pass(self):
++        good = self.jar()
++        out = self.root / 'reports'
++        with contextlib.redirect_stdout(io.StringIO()):
++            self.assertEqual(audit.main([str(good), str(good), '--out', str(out)]), 0)
++            self.assertEqual(audit.main([str(good), str(self.root / 'missing.jar'), '--out', str(out)]), 1)
++        self.assertEqual(json.loads((out / 'audit.json').read_text())['status'], 'FAIL')
++        self.assertIn('FAIL', (out / 'audit.txt').read_text())
++
++    def test_corrupt_deflate_replaces_previous_pass(self):
++        good = self.jar()
++        bad = self.root / 'corrupt-deflate.jar'
++        with zipfile.ZipFile(bad, 'w', compression=zipfile.ZIP_DEFLATED) as z:
++            z.writestr('payload', b'compressible-data' * 30)
++        data = bytearray(bad.read_bytes())
++        name_length, extra_length = struct.unpack_from('<HH', data, 26)
++        data[30 + name_length + extra_length] = 0x07  # Reserved DEFLATE block type.
++        bad.write_bytes(data)
++        out = self.root / 'reports'
++        with contextlib.redirect_stdout(io.StringIO()):
++            self.assertEqual(audit.main([str(good), str(good), '--out', str(out)]), 0)
++            self.assertEqual(audit.main([str(good), str(bad), '--out', str(out)]), 1)
++        report = json.loads((out / 'audit.json').read_text())
++        self.assertEqual(report['status'], 'FAIL')
++        self.assertIn('invalid block type', report['checks'][0]['reason'])
++
++    def test_truncated_decompression_replaces_previous_pass(self):
++        good = self.jar()
++        out = self.root / 'reports'
++        with contextlib.redirect_stdout(io.StringIO()):
++            self.assertEqual(audit.main([str(good), str(good), '--out', str(out)]), 0)
++            with patch.object(audit, 'open_loader', side_effect=EOFError('truncated compressed stream')):
++                self.assertEqual(audit.main([str(good), str(good), '--out', str(out)]), 1)
++        self.assertEqual(json.loads((out / 'audit.json').read_text())['status'], 'FAIL')
++
++    def test_actual_byte_differences_reported(self):
++        a = self.jar([('same.class', b'1'), ('changed.class', b'a'), ('removed.class', b'0')])
++        b = self.jar([('same.class', b'1'), ('changed.class', b'b'), ('added.class', b'0')])
++        out = self.root / 'reports'
++        with contextlib.redirect_stdout(io.StringIO()):
++            self.assertEqual(audit.main([str(a), str(b), '--out', str(out)]), 0)
++        report = json.loads((out / 'audit.json').read_text())
++        self.assertEqual(report['changed_files'], ['changed.class'])
++        self.assertEqual(report['added_files'], ['added.class'])
++        self.assertEqual(report['removed_files'], ['removed.class'])
++
++
++if __name__ == '__main__':
++    unittest.main(verbosity=2)
+--- /dev/null
++++ b/tests/test_build_tools.py
+@@ -0,0 +1,50 @@
++"""Build portability checks; execution of Windows itself is a separate scenario."""
++from pathlib import Path
++import importlib.util
++import os
++import subprocess
++import tempfile
++import unittest
++
++spec = importlib.util.spec_from_file_location('build_module', Path(__file__).resolve().parents[1] / 'build.py')
++build = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(build)
++
++
++class BuildToolTests(unittest.TestCase):
++    def test_platform_executable_names_and_missing_jdk(self):
++        with tempfile.TemporaryDirectory(prefix='jdk fixture ') as td:
++            root = Path(td)
++            (root / 'bin').mkdir()
++            for name in ('java', 'javac', 'java.exe', 'javac.exe'):
++                (root / 'bin' / name).touch()
++            self.assertEqual(build.java_tool(root, 'java', True).name, 'java.exe')
++            self.assertEqual(build.java_tool(root, 'javac', True).name, 'javac.exe')
++            self.assertEqual(build.java_tool(root, 'java', False).name, 'java')
++            (root / 'bin/java.exe').unlink()
++            with self.assertRaisesRegex(RuntimeError, 'complete JDK'):
++                build.java_tool(root, 'java', True)
++
++    def test_real_compilation_with_spaces_unicode_and_argument_file(self):
++        with tempfile.TemporaryDirectory(prefix='n9ezz build проверка ') as td:
++            root = Path(td)
++            source = root / 'Hello.java'
++            source.write_text('public class Hello {public static void main(String[] args) {System.out.println("OK");}}', encoding='utf-8')
++            args = root / 'compile args.txt'
++            build.write_javac_args(args, ['--release', '21', '-encoding', 'UTF-8', '-d', root / 'classes with spaces', source])
++            javac = build.java_tool(Path(os.environ['JAVA_HOME']), 'javac')
++            proc = subprocess.run([str(javac), '@' + str(args)], capture_output=True, text=True)
++            self.assertEqual(proc.returncode, 0, proc.stderr)
++            self.assertTrue((root / 'classes with spaces/Hello.class').is_file())
++
++    def test_argument_file_escaping_and_reject_line_injection(self):
++        with tempfile.TemporaryDirectory() as td:
++            p = Path(td) / 'args.txt'
++            build.write_javac_args(p, ['C:\\Java 21\\bin', 'a"b'])
++            self.assertEqual(p.read_text(), '"C:\\\\Java 21\\\\bin"\n"a\\"b"\n')
++            with self.assertRaises(ValueError):
++                build.write_javac_args(p, ['bad\n-option'])
++
++
++if __name__ == '__main__':
++    unittest.main(verbosity=2)
+--- /dev/null
++++ b/tests/unchanged_modules050.py
+@@ -0,0 +1,22 @@
++"""Compare every client class against 0.4.9, allowing only the scoped release diff."""
++from pathlib import Path
++import io
++import json
++import sys
++import zipfile
++
++reference_loader, candidate_client = map(Path, sys.argv[1:])
++with zipfile.ZipFile(reference_loader) as loader:
++    metadata = json.loads(loader.read('META-INF/n9ezz/embedded-client.json'))
++    reference = loader.read(metadata['resource'])
++with zipfile.ZipFile(io.BytesIO(reference)) as before, zipfile.ZipFile(candidate_client) as after:
++    old = {n for n in before.namelist() if n.endswith('.class')}
++    new = {n for n in after.namelist() if n.endswith('.class')}
++    assert old == new, 'Client classes were added or removed'
++    changed = {n for n in old if before.read(n) != after.read(n)}
++    expected = {'pulse/n9ezz/TriggerV2Controller.class', 'pulse/n9ezz/CombatStatus.class',
++                'pulse/n9ezz/InterfaceMode.class'}
++    assert changed == expected, f'Unexpected client code changes: {changed ^ expected}'
++    print(json.dumps({'result': 'PASS', 'unchangedClasses': len(old) - len(changed),
++                      'changedClasses': sorted(changed),
++                      'preserved': 'All other client classes, including Aura, Hitboxes, Speed, settings, menu and transport'}))
+--- a/tools/JuggernautPatch.java
++++ b/tools/JuggernautPatch.java
+@@ -66,7 +66,7 @@
+         }
+         handle.instructions.insertBefore(sw.dflt,extra);
+         for(AbstractInsnNode i:handle.instructions)if(i instanceof LdcInsnNode l&&l.cst instanceof String s){
+-            if(s.startsWith("PulseVisuals: быстрый бой применён."))l.cst="PulseVisuals 0.4.9: бой 360°, поиск 5 блоков, второй удар включён, Speed выключен. /pv status — причины ожидания; /pv hide — пауза.";
++            if(s.startsWith("PulseVisuals: быстрый бой применён."))l.cst="PulseVisuals 0.5.0: бой 360°, поиск 5 блоков, второй удар включён, Speed выключен. /pv status — причины ожидания; /pv hide — пауза.";
+             if(s.equals("PulseVisuals: /pv hide, /pv show, /pv combat. Команды выполняются локально."))l.cst="PulseVisuals: /pv combat, /pv juggernaut [off], /pv hide, /pv show, /pv status, /pv speedresume.";
+         }
+         FeaturePatch.write(files,c);
+--- a/tools/SixPatch.java
++++ b/tools/SixPatch.java
+@@ -114,7 +114,7 @@
+                 throw new IOException("Transport invariant changed: " + name);
+         }
+         if (classes == 0) throw new IOException("Empty patch");
+-        entries.put("META-INF/fabric-loader-0.19.3-1.21.4/build.json", ("{\"version\":\"0.4.9-experimental\","
++        entries.put("META-INF/fabric-loader-0.19.3-1.21.4/build.json", ("{\"version\":\"0.5.0-experimental\","
+             + "\"baselineSha256\":\"" + BASE_SHA + "\",\"sourceType\":\"partial-source-and-bytecode-overlay\","
+             + "\"gameVersion\":\"1.21.11\",\"registryCount\":90,\"restoredPulseModules\":83,\"n9ezzModules\":[\"KillAura\",\"Triggerbot\",\"AimBot\","
+             + "\"Hitboxes\",\"AutoTotem\",\"IncreasedDamage\",\"Speed\"]}\n").getBytes(StandardCharsets.UTF_8));

@@ -1,0 +1,15 @@
+N9Ezz AUDIT: PASS
+Scope: Offline integrity and embedded differences; no Minecraft launch or server/network test
+Archive integrity (both inputs): PASS
+Metadata target, embedded SHA-256 and length: PASS
+CompatibilityProfile unit test: SKIPPED — CompatibilityProfile is absent from this candidate
+Minecraft and RaidMine session: SKIPPED — Requires a separate game/server integration scenario
+RTT and loss behavior: SKIPPED — No live transport in this static audit
+Target: Minecraft 1.21.11 / Java 21
+Build: 0.5.0-experimental / embedded version: 1.5.3-n9ezz
+Embedded client changes: 4 modified, 0 added, 0 removed
+Modified classes:
+  pulse/n9ezz/CombatStatus.class
+  pulse/n9ezz/InterfaceMode.class
+  pulse/n9ezz/TriggerV2Controller.class
+NOTE: No real Minecraft launch, RaidMine session, RTT/loss measurement or anti-cheat result is established by this audit.

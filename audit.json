@@ -1,0 +1,79 @@
+{
+  "check": "N9Ezz custom loader offline audit",
+  "status": "PASS",
+  "scope": "Offline integrity and embedded differences; no Minecraft launch or server/network test",
+  "checks": [
+    {
+      "name": "Archive integrity (both inputs)",
+      "status": "PASS"
+    },
+    {
+      "name": "Metadata target, embedded SHA-256 and length",
+      "status": "PASS"
+    },
+    {
+      "name": "CompatibilityProfile unit test",
+      "status": "SKIPPED",
+      "reason": "CompatibilityProfile is absent from this candidate"
+    },
+    {
+      "name": "Minecraft and RaidMine session",
+      "status": "SKIPPED",
+      "reason": "Requires a separate game/server integration scenario"
+    },
+    {
+      "name": "RTT and loss behavior",
+      "status": "SKIPPED",
+      "reason": "No live transport in this static audit"
+    }
+  ],
+  "real_minecraft_launch": "SKIPPED",
+  "raidmine_session": "SKIPPED",
+  "network_rtt_loss": "SKIPPED",
+  "anticheat_bypass": "NOT_TESTED",
+  "baseline": {
+    "name": "fabric-loader-0.19.3-1.21.4.jar",
+    "size": 53501005,
+    "sha256": "31ab41905d0d2b35120dea95416a8e22c2c63e1438b555e4d0fdc0a94f976935"
+  },
+  "candidate": {
+    "name": "fabric-loader-0.19.3-1.21.4.jar",
+    "size": 53501070,
+    "sha256": "3d9504baf19d77de421e4964df6ad5937bfddea3ec5fc1e5e4fbb917b7028529"
+  },
+  "game": "1.21.11",
+  "java": 21,
+  "update_version": "0.5.0-experimental",
+  "client_version": "1.5.3-n9ezz",
+  "embedded_client_sha256": "33d3910904c2dc9bc66a94d94a4f7ea56cd2e90940120803cbdf315122739134",
+  "changed_files": [
+    "META-INF/fabric-loader-0.19.3-1.21.4/build.json",
+    "pulse/n9ezz/CombatStatus.class",
+    "pulse/n9ezz/InterfaceMode.class",
+    "pulse/n9ezz/TriggerV2Controller.class"
+  ],
+  "added_files": [],
+  "removed_files": [],
+  "key_classes": {
+    "pulse/n9ezz/AuraController.class": {
+      "baseline": true,
+      "candidate": true
+    },
+    "pulse/n9ezz/TriggerV2Controller.class": {
+      "baseline": true,
+      "candidate": true
+    },
+    "pulse/n9ezz/HitboxV3.class": {
+      "baseline": true,
+      "candidate": true
+    },
+    "pulse/n9ezz/CompatibilityProfile.class": {
+      "baseline": false,
+      "candidate": false
+    }
+  },
+  "compatibility_profile_unit_test": {
+    "status": "SKIPPED",
+    "reason": "CompatibilityProfile is absent from this candidate"
+  }
+}

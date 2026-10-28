@@ -1,0 +1,211 @@
+{
+  "version": "0.4.9-experimental",
+  "status": "PASS",
+  "jdk": "openjdk version \"21.0.8\" 2025-07-15 LTS",
+  "tests": [
+    {
+      "name": "UnchangedModules049",
+      "result": "PASS",
+      "report": "UnchangedModules049.txt"
+    },
+    {
+      "name": "RewriteTest",
+      "result": "PASS",
+      "report": "RewriteTest.txt"
+    },
+    {
+      "name": "CombatTest",
+      "result": "PASS",
+      "report": "CombatTest.txt"
+    },
+    {
+      "name": "ModuleTest",
+      "result": "PASS",
+      "report": "ModuleTest.txt"
+    },
+    {
+      "name": "FeatureTest",
+      "result": "PASS",
+      "report": "FeatureTest.txt"
+    },
+    {
+      "name": "BrandTest",
+      "result": "PASS",
+      "report": "BrandTest.txt"
+    },
+    {
+      "name": "NetworkTest",
+      "result": "PASS",
+      "report": "NetworkTest.txt"
+    },
+    {
+      "name": "Aura046Test",
+      "result": "PASS",
+      "report": "Aura046Test.txt"
+    },
+    {
+      "name": "Targeting046Test",
+      "result": "PASS",
+      "report": "Targeting046Test.txt"
+    },
+    {
+      "name": "Speed046Test",
+      "result": "PASS",
+      "report": "Speed046Test.txt"
+    },
+    {
+      "name": "Speed047Test",
+      "result": "PASS",
+      "report": "Speed047Test.txt"
+    },
+    {
+      "name": "Hitboxes048Test",
+      "result": "PASS",
+      "report": "Hitboxes048Test.txt"
+    },
+    {
+      "name": "Aura049Test",
+      "result": "PASS",
+      "report": "Aura049Test.txt"
+    },
+    {
+      "name": "runtime",
+      "result": "PASS",
+      "report": "runtime.txt"
+    },
+    {
+      "name": "mapping",
+      "result": "PASS",
+      "report": "mapping.txt"
+    },
+    {
+      "name": "access-widener",
+      "result": "PASS",
+      "report": "access-widener.txt"
+    },
+    {
+      "name": "nested-discovery",
+      "result": "PASS",
+      "report": "nested-discovery.txt"
+    },
+    {
+      "name": "mixin",
+      "result": "PASS",
+      "report": "mixin.txt"
+    },
+    {
+      "name": "fabric-compatibility",
+      "result": "PASS",
+      "report": "fabric-compatibility.txt"
+    },
+    {
+      "name": "fabric-entrypoint",
+      "result": "PASS",
+      "report": "fabric-entrypoint.txt"
+    },
+    {
+      "name": "fabric-dependency",
+      "result": "PASS",
+      "report": "fabric-dependency.txt"
+    },
+    {
+      "name": "game-integration",
+      "result": "PASS",
+      "report": "game-integration.txt"
+    },
+    {
+      "name": "external-mod-policy",
+      "result": "PASS",
+      "report": "external-mod-policy.txt"
+    },
+    {
+      "name": "universal-game-policy",
+      "result": "PASS",
+      "report": "universal-game-policy.txt"
+    },
+    {
+      "name": "quilt-game",
+      "result": "PASS",
+      "report": "quilt-game.txt"
+    },
+    {
+      "name": "fml-game",
+      "result": "PASS",
+      "report": "fml-game.txt"
+    },
+    {
+      "name": "local-diagnostics",
+      "result": "PASS",
+      "report": "local-diagnostics.txt"
+    },
+    {
+      "name": "client-contract",
+      "result": "PASS",
+      "report": "client-contract.txt"
+    },
+    {
+      "name": "resource-pack",
+      "result": "PASS",
+      "report": "resource-pack.txt"
+    },
+    {
+      "name": "packaged-self-test",
+      "result": "PASS",
+      "report": "packaged-self-test.txt"
+    },
+    {
+      "name": "installer",
+      "result": "PASS",
+      "report": "installer.txt"
+    },
+    {
+      "name": "installer-migration",
+      "result": "PASS",
+      "report": "installer-migration.txt"
+    },
+    {
+      "name": "test_gameplay_acceptance",
+      "result": "PASS",
+      "report": "test_gameplay_acceptance.txt"
+    },
+    {
+      "name": "test_cross_platform_acceptance",
+      "result": "PASS",
+      "report": "test_cross_platform_acceptance.txt"
+    }
+  ],
+  "inputs": {
+    "networkClientSha256": "5dbb9f72359d8371b7069dbf4f421c358c28a8c11af23e06c9182ec793aada6a",
+    "minecraftCompileApiSha256": "25810669cc30ab540f997f2af3fd3a4dae006f2275343951d874b19e8ed35d9f",
+    "originalLoaderSha256": "b81855307752b3d20df9bff66175914d2a118e7cce688c15e24b153952c60b3b",
+    "originalSourcesSha256": "b5451d33b11c389cadf1b8d85879a9f625faed60022f6cc9dae87ff9864dc960",
+    "previousReleaseSha256": "beba4df31d06867796e68667ed7fb972b47ad7ecd5988eba188b02305fbb3732"
+  },
+  "realMinecraftLaunch": "UNRUN",
+  "RaidMineServerSession": "UNRUN",
+  "networkPacketCapture": "UNRUN",
+  "anticheatBypass": "NOT_CLAIMED",
+  "gameVersion": "1.21.11",
+  "registryCount": 90,
+  "artifactLabel": "fabric-loader-0.19.3-1.21.4",
+  "sourceScope": "Loader source and new ASM patches; original Pulse engine full source is unavailable.",
+  "preservedNetworkClasses": [
+    "ru/pulse/mixin/ClientConnectionMixin.class",
+    "pulse/n9ezz/mixin/CombatEntityMixin.class",
+    "pulse/n9ezz/CombatDispatch.class",
+    "pulse/n9ezz/NetworkPacketPolicy.class"
+  ],
+  "clientSha256": "c0738b5d6c29fc1bc439082e41e739bcf000f64abae07930819de1a1b5931ee0",
+  "clientIdenticalTo044": false,
+  "clientSize": 53819966,
+  "artifacts": {
+    "fabric-loader-0.19.3-1.21.4.jar": {
+      "sha256": "31ab41905d0d2b35120dea95416a8e22c2c63e1438b555e4d0fdc0a94f976935",
+      "size": 53501005
+    },
+    "fabric-loader-0.19.3-1.21.4-sources.zip": {
+      "sha256": "6f8ba628dfe524e2b60e5724e4c3e966297e1c327daae57a96b09846b1207847",
+      "size": 3785235
+    }
+  }
+}
